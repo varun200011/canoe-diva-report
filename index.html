@@ -1,0 +1,1129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CANoe.DiVa — Test Report Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@200;300;400;600;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<style>
+:root{
+  --bg:#07080b;--bg2:#0c0e14;--bg3:#11141c;
+  --panel:rgba(12,14,20,0.96);
+  --b1:#14192a;--b2:#1c2640;
+  --text:#e4efff;--muted:#364d6e;
+  --cyan:#00e5ff;--amber:#ff9100;--green:#00e676;--red:#ff1744;--orange:#ff6d00;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;min-height:100vh}
+#bgCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+/* ════════════════════════════════════
+   CLUSTER OVERLAY
+════════════════════════════════════ */
+#clusterOverlay{
+  position:fixed;inset:0;z-index:900;
+  background:#000;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  transition:opacity .9s ease;
+}
+#clusterOverlay.hidden{opacity:0;pointer-events:none}
+
+#clusterCanvas{
+  display:block;
+  border-radius:20px;
+  box-shadow:
+    0 0 80px rgba(0,229,255,.12),
+    0 0 160px rgba(0,229,255,.05),
+    0 40px 120px rgba(0,0,0,.9);
+}
+
+.cluster-skip{
+  margin-top:18px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  color:rgba(255,255,255,.2);
+  cursor:pointer;transition:color .2s;
+  animation:skipFade 1s 2.5s ease forwards;
+  opacity:0;
+}
+.cluster-skip:hover{color:rgba(0,229,255,.6)}
+@keyframes skipFade{to{opacity:1}}
+
+/* ════════════════════════════════════
+   MAIN APP
+════════════════════════════════════ */
+#appWrap{opacity:0;transition:opacity .7s ease;min-height:100vh}
+#appWrap.show{opacity:1}
+
+.top-bar{
+  position:fixed;top:0;left:0;right:0;height:52px;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;padding:0 28px;
+  background:rgba(7,8,11,.9);border-bottom:1px solid var(--b1);backdrop-filter:blur(14px);
+}
+.tb-logo{font-family:'Orbitron',sans-serif;font-weight:700;font-size:14px;letter-spacing:3px;text-transform:uppercase;color:var(--cyan);display:flex;align-items:center;gap:8px}
+.tb-led{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:blink 2s ease-in-out infinite}
+.tb-r{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+
+/* screens */
+.screen{position:relative;z-index:10;display:none;min-height:100vh}
+.screen.active{display:flex;flex-direction:column}
+#sLanding{align-items:center;justify-content:center;padding-top:52px}
+#sDetails{align-items:center;justify-content:center;padding:72px 20px 40px}
+#sParsing{align-items:center;justify-content:center}
+
+/* LANDING */
+.lw{display:flex;width:100%;max-width:1060px;align-items:center;gap:54px;padding:36px 28px;min-height:calc(100vh - 52px)}
+.ll{flex:1;min-width:0}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--cyan);text-transform:uppercase;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.14);border-radius:999px;padding:5px 14px;margin-bottom:20px;opacity:0;animation:fadeUp .6s .1s ease forwards}
+.eyebrow .dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 1.2s step-end infinite}
+.lh1{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(32px,5.5vw,66px);line-height:.93;letter-spacing:-1px;text-transform:uppercase;opacity:0;animation:fadeUp .7s .2s ease forwards}
+.lh1 .g{display:block;background:linear-gradient(115deg,var(--cyan) 0%,#5af 30%,var(--amber) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.ldesc{font-size:13px;color:var(--muted);font-weight:300;line-height:1.8;max-width:390px;margin:18px 0 26px;opacity:0;animation:fadeUp .6s .35s ease forwards}
+.lspecs{display:flex;gap:22px;flex-wrap:wrap;opacity:0;animation:fadeUp .6s .5s ease forwards}
+.lspec .sn{font-family:'Orbitron',monospace;font-size:17px;font-weight:700;color:var(--cyan)}
+.lspec .sl{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.lr{flex-shrink:0;width:min(400px,100%);opacity:0;animation:fadeLeft .7s .3s ease forwards}
+
+/* upload card */
+.ucard{background:var(--panel);border:1px solid var(--b1);border-radius:20px;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.55);position:relative;overflow:hidden}
+.ucard::before{content:'';position:absolute;top:-1px;left:18%;right:18%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.4),transparent)}
+.uc-ttl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.uc-ttl::before,.uc-ttl::after{content:'';flex:1;height:1px;background:var(--b1)}
+.dz{border:1.5px dashed rgba(0,229,255,.18);border-radius:14px;background:rgba(0,0,0,.2);padding:30px 18px;text-align:center;cursor:pointer;position:relative;overflow:hidden;transition:all .3s}
+.dz:hover,.dz.over{border-color:rgba(0,229,255,.55);border-style:solid;background:rgba(0,16,28,.55);box-shadow:0 0 36px rgba(0,229,255,.06),inset 0 0 20px rgba(0,229,255,.03);transform:translateY(-2px)}
+.dz-line{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.5),transparent);animation:dzl 3s linear infinite;pointer-events:none}
+@keyframes dzl{0%{top:-1px}100%{top:100%}}
+.dz-icon{width:54px;height:54px;border-radius:50%;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.13);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;animation:glow 3s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.18)}50%{box-shadow:0 0 0 10px rgba(0,229,255,0)}}
+.dz-t{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px;margin-bottom:5px}
+.dz-s{font-size:11px;color:var(--muted);line-height:1.7}.dz-s a{color:var(--cyan);cursor:pointer}
+.dz-tags{display:flex;justify-content:center;gap:7px;margin-top:11px;flex-wrap:wrap}
+.dz-tag{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1.2px;padding:3px 9px;border-radius:999px;text-transform:uppercase;background:rgba(255,145,0,.05);border:1px solid rgba(255,145,0,.18);color:var(--amber)}
+#fileInput{display:none}
+#uerr{margin-top:10px;padding:9px 14px;background:rgba(255,23,68,.07);border:1px solid rgba(255,23,68,.2);border-radius:8px;color:#ff6080;font-size:11px;text-align:center;display:none}
+.feats{margin-top:16px;display:flex;flex-direction:column;gap:7px}
+.feat{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--muted)}
+.feat .fi{width:25px;height:25px;border-radius:6px;flex-shrink:0;background:rgba(0,229,255,.04);border:1px solid var(--b2);display:flex;align-items:center;justify-content:center;font-size:12px}
+
+/* DETAILS */
+.dcard{width:100%;max-width:520px;background:var(--panel);border:1px solid var(--b2);border-radius:20px;padding:34px;box-shadow:0 32px 80px rgba(0,0,0,.5);opacity:0;animation:scaleIn .4s .05s cubic-bezier(.22,1,.36,1) forwards}
+.dbadge{display:inline-flex;align-items:center;gap:7px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2.5px;color:var(--cyan);text-transform:uppercase;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.14);border-radius:999px;padding:5px 12px;margin-bottom:14px}
+.dbadge .dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 1s step-end infinite}
+.dh2{font-family:'Orbitron',sans-serif;font-weight:700;font-size:21px;letter-spacing:.5px;margin-bottom:3px}
+.dsub{font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:18px}
+.fbadge{display:flex;align-items:center;gap:9px;background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.11);border-radius:9px;padding:8px 12px;margin-bottom:18px}
+.fbn{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbs{font-size:9px;color:var(--muted);margin-left:auto;flex-shrink:0}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.fg{display:flex;flex-direction:column;gap:4px}.fg.full{grid-column:1/-1}
+.flbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.finp{background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:9px;padding:9px 12px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:12px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+.finp:focus{border-color:rgba(0,229,255,.38);box-shadow:0 0 0 3px rgba(0,229,255,.05)}
+.finp::placeholder{color:var(--muted)}
+.factions{display:flex;gap:8px;margin-top:18px}
+.fbtn{flex:1;padding:11px;border:1px solid rgba(0,229,255,.35);border-radius:10px;background:rgba(0,229,255,.07);color:var(--cyan);font-family:'Orbitron',sans-serif;font-weight:700;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.fbtn:hover{background:rgba(0,229,255,.12);box-shadow:0 0 16px rgba(0,229,255,.12)}
+.fghost{padding:11px 15px;border-radius:10px;background:none;border:1px solid var(--b2);color:var(--muted);font-family:'Orbitron',sans-serif;font-weight:600;font-size:9px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.fghost:hover{color:var(--text)}
+
+/* PARSING */
+.po{display:flex;flex-direction:column;align-items:center;padding:80px 24px;text-align:center}
+.rw{position:relative;width:180px;height:180px;margin-bottom:26px}
+.rs{width:100%;height:100%}
+.rsw{transform-origin:90px 90px;animation:rspin 1.8s linear infinite}
+.rdot{animation:rdot 2s ease-in-out infinite}
+.ph{font-family:'Orbitron',sans-serif;font-weight:700;font-size:19px;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px}
+.ps2{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:20px}
+.pbt{width:270px;height:2px;border-radius:999px;background:rgba(0,229,255,.07);overflow:hidden;margin-bottom:6px}
+.pbf{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--cyan),var(--amber));transition:width .25s ease}
+.ppct{font-family:'Orbitron',monospace;font-size:14px;color:var(--cyan);letter-spacing:2px}
+.psteps{display:flex;flex-direction:column;gap:6px;margin-top:14px;width:250px;text-align:left}
+.pstep{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;opacity:0;transform:translateX(-8px);transition:all .3s}
+.pstep.active{opacity:1;transform:translateX(0);color:var(--cyan)}
+.pstep.done{opacity:1;transform:translateX(0);color:rgba(0,230,118,.65)}
+.pdot{width:5px;height:5px;border-radius:50%;background:var(--b2);flex-shrink:0;transition:background .3s,box-shadow .3s}
+.pstep.active .pdot{background:var(--cyan);box-shadow:0 0 7px var(--cyan);animation:blink 1s infinite}
+.pstep.done .pdot{background:var(--green);box-shadow:0 0 5px var(--green)}
+
+/* REPORT */
+#sReport{padding-top:52px;min-height:100vh}
+.rnav{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:rgba(7,8,11,.96);border-bottom:1px solid var(--b1);backdrop-filter:blur(14px);z-index:300}
+.rnavl{display:flex;align-items:center;gap:10px}
+.backbtn{display:flex;align-items:center;gap:5px;background:none;border:1px solid var(--b2);border-radius:7px;padding:5px 12px;color:var(--muted);font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.backbtn:hover{color:var(--cyan);border-color:rgba(0,229,255,.35)}
+.rnavttl{font-family:'Orbitron',sans-serif;font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase}
+.rnavfile{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:.3px;margin-top:1px}
+.exprow{display:flex;gap:5px}
+.expbtn{background:none;border:1px solid var(--b2);border-radius:7px;padding:5px 12px;color:var(--muted);font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.expbtn:hover{border-color:rgba(255,145,0,.4);color:var(--amber)}
+.mstrip{display:flex;flex-wrap:wrap;gap:7px;padding:8px 11px 0}
+.mchip{display:flex;align-items:center;gap:6px;background:rgba(0,229,255,.03);border:1px solid var(--b1);border-radius:7px;padding:5px 10px}
+.mlbl{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
+.mval{font-size:10px;font-weight:600;color:var(--text)}
+.shell{display:grid;grid-template-columns:258px 1fr;gap:10px;padding:10px}
+.panel{background:var(--panel);border:1px solid var(--b1);border-radius:13px;padding:11px;backdrop-filter:blur(10px)}
+.sblbl{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.sblbl::after{content:'';flex:1;height:1px;background:var(--b1)}
+.catrow{margin-bottom:8px}
+.catname{font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catnums{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);margin-top:1px}
+.pt{height:4px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--b1);overflow:hidden;display:flex;margin-top:3px}
+.pp{background:var(--green)}.pw{background:var(--amber)}.pf{background:var(--red)}
+.krow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:10px}
+.kc{background:rgba(0,0,0,.2);border:1px solid var(--b1);border-radius:10px;padding:10px 6px;text-align:center;position:relative;overflow:hidden}
+.kc::after{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:var(--kc,var(--cyan));box-shadow:0 0 5px var(--kc,var(--cyan))}
+.kc.kp{--kc:var(--green)}.kc.kw{--kc:var(--amber)}.kc.kf{--kc:var(--red)}.kc.kr{--kc:var(--cyan)}
+.kn{font-family:'Orbitron',sans-serif;font-size:21px;font-weight:700;line-height:1}
+.kl{font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.kt .kn{color:var(--text)}.kp .kn{color:var(--green)}.kw .kn{color:var(--amber)}.kf .kn{color:var(--red)}.kr .kn{color:var(--cyan)}
+.chartbox{height:255px}
+.dataTables_wrapper{color:var(--text)!important}
+.dataTables_filter input,.dataTables_length select{background:var(--bg2)!important;color:var(--text)!important;border:1px solid var(--b2)!important;border-radius:5px!important;padding:4px 8px!important}
+.dataTables_info,.dataTables_paginate{color:var(--muted)!important;font-size:10px}
+.paginate_button{color:var(--muted)!important;border-radius:5px!important}
+.paginate_button.current{background:rgba(0,229,255,.1)!important;color:var(--cyan)!important;border-color:rgba(0,229,255,.25)!important}
+table.dataTable thead th{font-family:'Share Tech Mono',monospace!important;font-size:8px!important;letter-spacing:2px!important;text-transform:uppercase!important;color:var(--muted)!important;border-bottom:1px solid var(--b1)!important;background:var(--bg2)!important}
+table.dataTable tbody tr{background:var(--bg)!important}
+table.dataTable tbody tr:hover{background:rgba(0,229,255,.025)!important}
+table.dataTable td{border-color:var(--b1)!important;font-size:11px!important;vertical-align:middle!important}
+th,td{color:var(--text)!important}
+.cr{cursor:pointer}
+.sp{padding:2px 8px;border-radius:999px;font-weight:700;font-size:8px;display:inline-block;letter-spacing:1px;text-transform:uppercase;font-family:'Share Tech Mono',monospace}
+.spass{background:rgba(0,230,118,.09);color:var(--green);border:1px solid rgba(0,230,118,.2)}
+.swarn{background:rgba(255,145,0,.09);color:var(--amber);border:1px solid rgba(255,145,0,.2)}
+.sfail{background:rgba(255,23,68,.09);color:var(--red);border:1px solid rgba(255,23,68,.2)}
+.sunk{background:rgba(54,77,110,.09);color:var(--muted);border:1px solid rgba(54,77,110,.2)}
+.nav-pills .nav-link{font-family:'Share Tech Mono',monospace;font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted);border:1px solid transparent;border-radius:7px;padding:5px 14px;transition:all .2s}
+.nav-pills .nav-link.active{background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.2);color:var(--cyan)}
+.nav-pills .nav-link:hover:not(.active){color:var(--text);border-color:var(--b2)}
+.modal-content{background:rgba(12,14,20,.98)!important;border:1px solid var(--b2)!important;border-radius:14px!important;backdrop-filter:blur(20px)}
+.modal-header{border-bottom:1px solid var(--b1)!important;padding:14px 18px 11px}
+.mttl{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;letter-spacing:.5px;color:var(--cyan)}
+pre{background:rgba(0,0,0,.5)!important;border:1px solid var(--b1)!important;border-radius:8px!important;color:var(--text)!important;font-family:'Share Tech Mono',monospace!important;font-size:10px!important;white-space:pre-wrap;word-break:break-word;padding:10px!important;line-height:1.65}
+.flbl2{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
+hr.hd{border:none;border-top:1px solid var(--b1);margin:10px 0}
+.shell{animation:ri .4s ease forwards}
+
+/* KEYFRAMES */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeLeft{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes rspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes rdot{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes ri{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:880px){.lw{flex-direction:column;gap:28px;padding:22px 16px}.lr{width:100%}.shell{grid-template-columns:1fr}.krow{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:500px){.krow{grid-template-columns:repeat(2,1fr)}.fgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<!-- ══════════════════════════════════════════════════
+  MOTORCYCLE CLUSTER OVERLAY
+══════════════════════════════════════════════════ -->
+<div id="clusterOverlay">
+  <canvas id="clusterCanvas"></canvas>
+  <div class="cluster-skip" onclick="exitCluster()">[ tap to skip ]</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+  MAIN APP
+══════════════════════════════════════════════════ -->
+<div id="appWrap">
+  <div class="top-bar">
+    <div class="tb-logo"><span class="tb-led"></span>CANoe.DiVa</div>
+    <div class="tb-r" id="tbr">UDS CAPL Report Generator</div>
+  </div>
+
+  <!-- SCREEN 1 -->
+  <div id="sLanding" class="screen active">
+    <div class="lw">
+      <div class="ll">
+        <div class="eyebrow"><span class="dot"></span>CANalyzer Write Window Analyser</div>
+        <h1 class="lh1">Automotive<br>Test Report<br><span class="g">Generator</span></h1>
+        <p class="ldesc">Parse CANalyzer CAPL logs, visualise UDS test coverage, detect failures and export structured reports — entirely offline in your browser.</p>
+        <div class="lspecs">
+          <div class="lspec"><div class="sn">UDS</div><div class="sl">Protocol</div></div>
+          <div class="lspec"><div class="sn">CAPL</div><div class="sl">Engine</div></div>
+          <div class="lspec"><div class="sn">CAN</div><div class="sl">Network</div></div>
+          <div class="lspec"><div class="sn">DiVa</div><div class="sl">Framework</div></div>
+        </div>
+      </div>
+      <div class="lr">
+        <div class="ucard">
+          <div class="uc-ttl">Upload Log File</div>
+          <div class="dz" id="dropZone">
+            <div class="dz-line"></div>
+            <input type="file" id="fileInput" accept=".txt">
+            <div class="dz-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="1.4">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/>
+              </svg>
+            </div>
+            <div class="dz-t">Drop Write Window Log</div>
+            <div class="dz-s">Drag &amp; drop your <strong style="color:var(--cyan)">CANalyzer .txt</strong> or <a onclick="document.getElementById('fileInput').click()">browse</a></div>
+            <div class="dz-tags"><span class="dz-tag">write_window.txt</span><span class="dz-tag">CAPL Output</span></div>
+          </div>
+          <div id="uerr">⚠ No CAPL tests found — verify your Write Window export format.</div>
+          <div class="feats">
+            <div class="feat"><div class="fi">📊</div>Interactive charts with click-to-filter</div>
+            <div class="feat"><div class="fi">🔍</div>Full test detail modal per row</div>
+            <div class="feat"><div class="fi">📥</div>Export as PDF, HTML or Excel</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2 -->
+  <div id="sDetails" class="screen">
+    <div class="dcard">
+      <div class="dbadge"><span class="dot"></span>File loaded — enter session info</div>
+      <div class="dh2">Test Session Details</div>
+      <p class="dsub">These appear in the report header. All fields are optional.</p>
+      <div class="fbadge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="fbn" id="dfname">—</span><span class="fbs" id="dfsize">—</span>
+      </div>
+      <div class="fgrid">
+        <div class="fg"><label class="flbl">Tester Name</label><input class="finp" id="fTester" placeholder="e.g. Varun N."></div>
+        <div class="fg"><label class="flbl">Project</label><input class="finp" id="fProject" placeholder="e.g. IPC_Gen3"></div>
+        <div class="fg"><label class="flbl">Variant</label><input class="finp" id="fVariant" placeholder="e.g. HSD_Full"></div>
+        <div class="fg"><label class="flbl">SW Version</label><input class="finp" id="fSw" placeholder="e.g. v2.4.1-RC3"></div>
+        <div class="fg full"><label class="flbl">Test Date</label><input class="finp" id="fDate" type="date"></div>
+      </div>
+      <div class="factions">
+        <button class="fghost" onclick="goTo('sLanding')">← Back</button>
+        <button class="fbtn" onclick="startParsing()">Generate Report →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3 -->
+  <div id="sParsing" class="screen">
+    <div class="po">
+      <div class="rw">
+        <svg class="rs" viewBox="0 0 180 180" fill="none">
+          <circle cx="90" cy="90" r="84" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+          <circle cx="90" cy="90" r="62" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+          <circle cx="90" cy="90" r="40" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+          <circle cx="90" cy="90" r="18" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+          <line x1="90" y1="6" x2="90" y2="174" stroke="rgba(0,229,255,.05)" stroke-width=".7"/>
+          <line x1="6" y1="90" x2="174" y2="90" stroke="rgba(0,229,255,.05)" stroke-width=".7"/>
+          <circle cx="90" cy="90" r="87" stroke="rgba(0,229,255,.12)" stroke-width="1.5"/>
+          <defs><radialGradient id="sg" cx="90" cy="90" r="84" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#00e5ff" stop-opacity="0"/><stop offset="100%" stop-color="#00e5ff" stop-opacity="0.14"/></radialGradient></defs>
+          <g class="rsw"><path d="M90 90 L90 6 A84 84 0 0 1 155 132 Z" fill="url(#sg)" opacity=".9"/><line x1="90" y1="90" x2="90" y2="6" stroke="#00e5ff" stroke-width="1.5" stroke-opacity=".5"/></g>
+          <circle cx="120" cy="58" r="3" fill="#00e5ff" class="rdot" opacity=".9"/>
+          <circle cx="64" cy="120" r="2" fill="#ff9100" class="rdot" style="animation-delay:.55s" opacity=".8"/>
+          <circle cx="134" cy="118" r="2" fill="#00e676" class="rdot" style="animation-delay:1.1s" opacity=".7"/>
+          <circle cx="90" cy="90" r="3" fill="#00e5ff"/><circle cx="90" cy="90" r="7" stroke="#00e5ff" stroke-width=".8" opacity=".3"/>
+        </svg>
+      </div>
+      <div class="ph">Analysing Log File</div>
+      <div class="ps2" id="psub">INITIALISING...</div>
+      <div class="pbt"><div class="pbf" id="pbf"></div></div>
+      <div class="ppct" id="ppct">0%</div>
+      <div class="psteps">
+        <div class="pstep" id="ps1"><div class="pdot"></div>Reading write window log</div>
+        <div class="pstep" id="ps2x"><div class="pdot"></div>Parsing CAPL test blocks</div>
+        <div class="pstep" id="ps3"><div class="pdot"></div>Extracting signal states</div>
+        <div class="pstep" id="ps4"><div class="pdot"></div>Deduplicating test indices</div>
+        <div class="pstep" id="ps5"><div class="pdot"></div>Computing category statistics</div>
+        <div class="pstep" id="ps6"><div class="pdot"></div>Building report data</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 4 -->
+  <div id="sReport" class="screen" style="display:none">
+    <div class="rnav">
+      <div class="rnavl">
+        <button class="backbtn" onclick="goTo('sLanding');resetAll()">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5"/><polyline points="12 5 5 12 12 19"/></svg>New
+        </button>
+        <div><div class="rnavttl">CANoe.DiVa — Report</div><div class="rnavfile" id="rfn">—</div></div>
+      </div>
+      <div class="exprow">
+        <button class="expbtn" onclick="dlPDF()">⬇ PDF</button>
+        <button class="expbtn" onclick="dlHTML()">⬇ HTML</button>
+        <button class="expbtn" id="xlBtn">⬇ Excel</button>
+      </div>
+    </div>
+    <div class="mstrip" id="mstrip"></div>
+    <div class="shell">
+      <div class="panel"><div class="sblbl">Categories</div><div id="sbcats"></div></div>
+      <div class="panel">
+        <div class="krow" id="krow"></div>
+        <div class="row g-2">
+          <div class="col-lg-5"><div class="panel chartbox"><canvas id="dc"></canvas></div></div>
+          <div class="col-lg-7"><div class="panel chartbox"><canvas id="bc"></canvas></div></div>
+        </div>
+        <div style="font-size:7px;color:var(--muted);font-family:'Share Tech Mono',monospace;letter-spacing:1px;margin-top:5px">CLICK CHART → FILTER &nbsp;|&nbsp; DOUBLE CLICK → RESET</div>
+        <hr class="hd">
+        <ul class="nav nav-pills mb-2">
+          <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tabAll">All Tests</button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabFail">Failures</button></li>
+        </ul>
+        <div class="tab-content">
+          <div id="tabAll" class="tab-pane fade show active">
+            <table id="tAll" class="table table-dark table-hover table-sm w-100">
+              <thead><tr><th>#</th><th>Category</th><th>Description</th><th>Status</th><th>Request</th><th>Expected</th><th>Response</th></tr></thead>
+            </table>
+          </div>
+          <div id="tabFail" class="tab-pane fade">
+            <table id="tFail" class="table table-dark table-hover table-sm w-100">
+              <thead><tr><th>#</th><th>Category</th><th>Description</th><th>Expected</th><th>Response</th><th>Result</th></tr></thead>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="detModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div><div class="mttl" id="mt"></div><div style="font-size:8px;color:var(--muted);font-family:'Share Tech Mono',monospace;letter-spacing:1px;margin-top:2px" id="ms"></div></div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" style="padding:15px 17px">
+          <div class="row g-2">
+            <div class="col-lg-6"><div class="flbl2">Request</div><pre id="mr"></pre></div>
+            <div class="col-lg-6"><div class="flbl2">Expected</div><pre id="me"></pre></div>
+            <div class="col-lg-6"><div class="flbl2">Response</div><pre id="mres"></pre></div>
+            <div class="col-lg-6"><div class="flbl2">Result</div><pre id="mrl"></pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /appWrap -->
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+/* ══════════════════════════════════════════
+   BG CANVAS
+══════════════════════════════════════════ */
+(()=>{
+  const cv=document.getElementById('bgCanvas'),ctx=cv.getContext('2d');
+  let W,H;const sz=()=>{W=cv.width=window.innerWidth;H=cv.height=window.innerHeight};sz();window.addEventListener('resize',sz);
+  const streams=Array.from({length:12},()=>({x:Math.random()*2000,y:Math.floor(Math.random()*22)*52+10,w:50+Math.random()*170,spd:.5+Math.random()*2,c:Math.random()>.5?'0,229,255':'255,145,0',a:.04+Math.random()*.08}));
+  const nodes=[];for(let r=0;r<10;r++)for(let c=0;c<20;c++)nodes.push({x:c*115+(r%2)*58,y:r*95+30,p:Math.random()*Math.PI*2,s:.005+Math.random()*.012,on:Math.random()>.82});
+  const pts=Array.from({length:50},()=>({x:Math.random()*1920,y:Math.random()*1080,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:.4+Math.random()*.9,c:Math.random()>.5?'0,229,255':'255,145,0'}));
+  const draw=()=>{
+    ctx.clearRect(0,0,W,H);
+    const bg=ctx.createRadialGradient(W*.3,H*.2,0,W*.5,H*.5,W*.85);
+    bg.addColorStop(0,'rgba(0,18,40,.5)');bg.addColorStop(1,'rgba(7,8,11,0)');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    for(let x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.strokeStyle='rgba(0,229,255,.018)';ctx.lineWidth=.4;ctx.stroke()}
+    for(let y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.strokeStyle='rgba(0,229,255,.018)';ctx.lineWidth=.4;ctx.stroke()}
+    nodes.forEach(n=>{n.p+=n.s;const a=(Math.sin(n.p)+1)/2;if(!n.on)return;ctx.beginPath();ctx.arc(n.x,n.y,1.3,0,Math.PI*2);ctx.fillStyle=`rgba(0,229,255,${.07+a*.22})`;ctx.fill();
+      nodes.forEach(n2=>{if(!n2.on)return;const dx=n2.x-n.x,dy=n2.y-n.y,d=Math.sqrt(dx*dx+dy*dy);if(d>0&&d<115){ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(n2.x,n2.y);ctx.strokeStyle=`rgba(0,229,255,${.014+a*.016})`;ctx.lineWidth=.28;ctx.stroke()}})});
+    streams.forEach(s=>{s.x+=s.spd;if(s.x>W+200)s.x=-s.w-50;const g=ctx.createLinearGradient(s.x,0,s.x+s.w,0);g.addColorStop(0,'transparent');g.addColorStop(.35,`rgba(${s.c},${s.a})`);g.addColorStop(.65,`rgba(${s.c},${s.a})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(s.x,s.y,s.w,1)});
+    pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(${p.c},.28)`;ctx.fill()});
+    requestAnimationFrame(draw);
+  };draw();
+})();
+
+/* ══════════════════════════════════════════
+   MOTORCYCLE CLUSTER — FULL CANVAS
+══════════════════════════════════════════ */
+const CCV = document.getElementById('clusterCanvas');
+const CC  = CCV.getContext('2d');
+let CW, CH, cx, cy;
+let clusterExited = false;
+let clusterRAF = null;
+
+function sizeCluster() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const scale = Math.min(1, vw / 900, vh / 420);
+  CW = Math.round(880 * scale);
+  CH = Math.round(400 * scale);
+  CCV.width  = CW;
+  CCV.height = CH;
+  CCV.style.width  = CW + 'px';
+  CCV.style.height = CH + 'px';
+  cx = CW / 2; cy = CH / 2;
+}
+sizeCluster();
+window.addEventListener('resize', () => { if (!clusterExited) { sizeCluster(); } });
+
+// ── Animation state ──
+let ANIM = {
+  rpm: 0, speed: 0, gear: 'N',
+  fuel: 0.72, temp: 0, batt: 12.6,
+  trip: 0, odo: 0,
+  ind_turn_l: false, ind_turn_r: false,
+  ind_highbeam: false, ind_engine: false, ind_neutral: true, ind_ready: false,
+  phase: 'boot', // boot | selftest | sweep | settle | done
+  t: 0, // elapsed ms since start
+};
+
+const SCALE = () => Math.min(CW / 880, CH / 400);
+
+// ── Draw entire cluster frame ──
+function drawCluster(elapsed) {
+  const s = SCALE();
+  CC.clearRect(0, 0, CW, CH);
+
+  // Background
+  const bgGrad = CC.createLinearGradient(0, 0, CW, CH);
+  bgGrad.addColorStop(0, '#0e1118');
+  bgGrad.addColorStop(1, '#070a0f');
+  CC.fillStyle = bgGrad;
+  roundRect(CC, 0, 0, CW, CH, 18 * s);
+  CC.fill();
+
+  // Inner vignette
+  const vig = CC.createRadialGradient(cx, cy, CH * 0.15, cx, cy, CH * 0.85);
+  vig.addColorStop(0, 'rgba(0,30,60,.0)');
+  vig.addColorStop(1, 'rgba(0,0,0,.55)');
+  CC.fillStyle = vig;
+  roundRect(CC, 0, 0, CW, CH, 18 * s);
+  CC.fill();
+
+  // Divider lines
+  CC.strokeStyle = 'rgba(255,255,255,.04)';
+  CC.lineWidth = s;
+  // vertical dividers
+  [0.285, 0.715].forEach(r => {
+    CC.beginPath(); CC.moveTo(cx * r * 2, CH * 0.08); CC.lineTo(cx * r * 2, CH * 0.92); CC.stroke();
+  });
+
+  const phase = ANIM.phase;
+  const t = elapsed;
+
+  // ── BOOT / SELF-TEST ──
+  if (phase === 'boot' || phase === 'selftest') {
+    drawBootScreen(t, s);
+    return;
+  }
+
+  // ── NORMAL CLUSTER DISPLAY ──
+  // Left: Tachometer
+  const tachX = CW * 0.165, tachY = CH * 0.5, tachR = CH * 0.38;
+  drawArcGauge(tachX, tachY, tachR * s, {
+    label: 'RPM', unit: 'x1000', max: 10, value: ANIM.rpm / 1000,
+    colorTrack: 'rgba(255,255,255,.06)',
+    colorFill: '#ff6d00',
+    colorGlow: 'rgba(255,109,0,.3)',
+    redZone: 8.5,
+    ticks: 10, subTicks: 5,
+    startAngle: Math.PI * 0.72,
+    endAngle: Math.PI * 2.28,
+    s
+  });
+
+  // Right: Speedometer
+  const spdX = CW * 0.835, spdY = CH * 0.5, spdR = CH * 0.38;
+  drawArcGauge(spdX, spdY, spdR * s, {
+    label: 'SPEED', unit: 'km/h', max: 220, value: ANIM.speed,
+    colorTrack: 'rgba(255,255,255,.06)',
+    colorFill: '#00e5ff',
+    colorGlow: 'rgba(0,229,255,.25)',
+    redZone: 200,
+    ticks: 11, subTicks: 4,
+    startAngle: Math.PI * 0.72,
+    endAngle: Math.PI * 2.28,
+    s
+  });
+
+  // Center panel
+  drawCenter(s);
+
+  // Scan line effect (fades after a while)
+  if (t < 800) {
+    const scanAlpha = Math.max(0, 1 - t / 800) * 0.06;
+    CC.fillStyle = `rgba(0,229,255,${scanAlpha})`;
+    for (let y = 0; y < CH; y += 3) {
+      CC.fillRect(0, y, CW, 1);
+    }
+  }
+}
+
+function drawBootScreen(t, s) {
+  // Full black with logo boot
+  const alpha = Math.min(1, t / 300);
+
+  // Glowing brand text
+  CC.save();
+  CC.globalAlpha = alpha;
+  CC.font = `900 ${28 * s}px 'Orbitron', sans-serif`;
+  CC.textAlign = 'center'; CC.textBaseline = 'middle';
+  CC.fillStyle = '#fff';
+  CC.shadowColor = '#00e5ff';
+  CC.shadowBlur = 30 * s;
+  CC.fillText('CANoe · DiVa', cx, cy - 30 * s);
+
+  CC.font = `400 ${10 * s}px 'Share Tech Mono', monospace`;
+  CC.fillStyle = 'rgba(0,229,255,.7)';
+  CC.shadowBlur = 8 * s;
+  CC.fillText('UDS CAPL TEST REPORT GENERATOR', cx, cy + 2 * s);
+
+  // Boot status
+  if (ANIM.phase === 'selftest') {
+    const msgs = ['INITIALISING SYSTEMS...','CAN BUS READY','UDS STACK OK','CAPL ENGINE LOADED','ALL SYSTEMS GO'];
+    const idx = Math.floor((t - 300) / 200) % msgs.length;
+    CC.font = `400 ${8 * s}px 'Share Tech Mono', monospace`;
+    CC.fillStyle = 'rgba(0,229,255,.5)';
+    CC.shadowBlur = 0;
+    CC.fillText(msgs[Math.max(0, idx)], cx, cy + 22 * s);
+
+    // Progress bar
+    const prog = Math.min(1, (t - 300) / 1200);
+    const bw = 200 * s, bh = 2 * s;
+    const bx = cx - bw / 2, by = cy + 40 * s;
+    CC.fillStyle = 'rgba(0,229,255,.08)';
+    CC.fillRect(bx, by, bw, bh);
+    const g = CC.createLinearGradient(bx, 0, bx + bw, 0);
+    g.addColorStop(0, '#00e5ff'); g.addColorStop(1, '#ff9100');
+    CC.fillStyle = g;
+    CC.shadowColor = '#00e5ff'; CC.shadowBlur = 6 * s;
+    CC.fillRect(bx, by, bw * prog, bh);
+  }
+  CC.restore();
+
+  // Corner brackets
+  const brk = 40 * s, bt = 18 * s;
+  const bAlpha = Math.min(1, t / 500) * 0.5;
+  CC.strokeStyle = `rgba(0,229,255,${bAlpha})`; CC.lineWidth = 1.5 * s;
+  [[bt, bt, 1, 1], [CW - bt - brk, bt, -1, 1], [bt, CH - bt - brk, 1, -1], [CW - bt - brk, CH - bt - brk, -1, -1]].forEach(([x, y, dx, dy]) => {
+    CC.beginPath(); CC.moveTo(x, y + brk * dy); CC.lineTo(x, y); CC.lineTo(x + brk * dx, y); CC.stroke();
+  });
+}
+
+function drawArcGauge(gx, gy, R, opts) {
+  const { label, unit, max, value, colorFill, colorGlow, colorTrack, redZone,
+          ticks, subTicks, startAngle, endAngle, s } = opts;
+
+  // Track
+  CC.beginPath(); CC.arc(gx, gy, R, startAngle, endAngle);
+  CC.strokeStyle = colorTrack; CC.lineWidth = 10 * s; CC.lineCap = 'round'; CC.stroke();
+
+  // Red zone
+  if (redZone) {
+    const rzA = startAngle + (endAngle - startAngle) * (redZone / max);
+    CC.beginPath(); CC.arc(gx, gy, R, rzA, endAngle);
+    CC.strokeStyle = 'rgba(255,23,68,.22)'; CC.lineWidth = 10 * s; CC.stroke();
+  }
+
+  // Value fill
+  const valA = startAngle + (endAngle - startAngle) * Math.min(value / max, 1);
+  if (value > 0) {
+    const fillGrad = CC.createLinearGradient(gx - R, gy, gx + R, gy);
+    fillGrad.addColorStop(0, colorFill);
+    fillGrad.addColorStop(0.8, colorFill);
+    fillGrad.addColorStop(1, '#ffffff');
+    // glow pass
+    CC.beginPath(); CC.arc(gx, gy, R, startAngle, valA);
+    CC.strokeStyle = colorGlow; CC.lineWidth = 20 * s; CC.lineCap = 'round'; CC.stroke();
+    // value pass
+    CC.beginPath(); CC.arc(gx, gy, R, startAngle, valA);
+    CC.strokeStyle = fillGrad; CC.lineWidth = 10 * s; CC.lineCap = 'round'; CC.stroke();
+  }
+
+  // Tick marks
+  for (let i = 0; i <= ticks * subTicks; i++) {
+    const a = startAngle + (endAngle - startAngle) * (i / (ticks * subTicks));
+    const isMaj = i % subTicks === 0;
+    const r1 = R - (isMaj ? 22 * s : 14 * s);
+    const r2 = R - 7 * s;
+    CC.beginPath();
+    CC.moveTo(gx + Math.cos(a) * r1, gy + Math.sin(a) * r1);
+    CC.lineTo(gx + Math.cos(a) * r2, gy + Math.sin(a) * r2);
+    CC.strokeStyle = isMaj ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.14)';
+    CC.lineWidth = isMaj ? 1.5 * s : 0.8 * s; CC.lineCap = 'square'; CC.stroke();
+    if (isMaj) {
+      const tv = Math.round(max * (i / (ticks * subTicks)));
+      CC.font = `600 ${8 * s}px 'Share Tech Mono', monospace`;
+      CC.textAlign = 'center'; CC.textBaseline = 'middle';
+      CC.fillStyle = 'rgba(255,255,255,.3)';
+      CC.fillText(tv, gx + Math.cos(a) * (R - 30 * s), gy + Math.sin(a) * (R - 30 * s));
+    }
+  }
+
+  // Needle
+  const needleA = valA;
+  CC.save();
+  CC.translate(gx, gy);
+  CC.rotate(needleA);
+  // needle body
+  CC.beginPath();
+  CC.moveTo(-10 * s, 0); CC.lineTo(0, -2.5 * s); CC.lineTo(R - 16 * s, 0); CC.lineTo(0, 2.5 * s);
+  CC.closePath();
+  CC.fillStyle = colorFill;
+  CC.shadowColor = colorFill; CC.shadowBlur = 10 * s;
+  CC.fill();
+  CC.restore();
+  CC.shadowBlur = 0;
+
+  // Center hub
+  CC.beginPath(); CC.arc(gx, gy, 9 * s, 0, Math.PI * 2);
+  CC.fillStyle = '#111520'; CC.fill();
+  CC.beginPath(); CC.arc(gx, gy, 5 * s, 0, Math.PI * 2);
+  CC.fillStyle = colorFill; CC.shadowColor = colorFill; CC.shadowBlur = 8 * s;
+  CC.fill(); CC.shadowBlur = 0;
+
+  // Digital value in gauge
+  CC.font = `900 ${20 * s}px 'Orbitron', monospace`;
+  CC.textAlign = 'center'; CC.textBaseline = 'middle';
+  CC.fillStyle = colorFill;
+  CC.shadowColor = colorFill; CC.shadowBlur = 12 * s;
+  const dispVal = label === 'RPM' ? (value * 1000).toFixed(0) : Math.round(value);
+  CC.fillText(dispVal, gx, gy + 26 * s);
+  CC.shadowBlur = 0;
+
+  CC.font = `400 ${7 * s}px 'Share Tech Mono', monospace`;
+  CC.fillStyle = 'rgba(255,255,255,.28)';
+  CC.fillText(unit.toUpperCase(), gx, gy + 39 * s);
+
+  CC.font = `600 ${7 * s}px 'Share Tech Mono', monospace`;
+  CC.fillStyle = 'rgba(255,255,255,.18)';
+  CC.fillText(label.toUpperCase(), gx, gy + 49 * s);
+}
+
+function drawCenter(s) {
+  const panelX = CW * 0.285, panelW = CW * 0.43;
+  const panelY = CH * 0.06, panelH = CH * 0.88;
+
+  // Center panel bg
+  const cpg = CC.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
+  cpg.addColorStop(0, 'rgba(0,20,40,.0)');
+  cpg.addColorStop(0.5, 'rgba(0,20,40,.06)');
+  cpg.addColorStop(1, 'rgba(0,20,40,.0)');
+  CC.fillStyle = cpg;
+  CC.fillRect(panelX, panelY, panelW, panelH);
+
+  const mcx = CW * 0.5;
+
+  // ── Gear + indicator row ──
+  const gearY = CH * 0.19;
+  CC.font = `900 ${56 * s}px 'Orbitron', sans-serif`;
+  CC.textAlign = 'center'; CC.textBaseline = 'middle';
+  CC.fillStyle = '#ff9100';
+  CC.shadowColor = 'rgba(255,145,0,.8)'; CC.shadowBlur = 24 * s;
+  CC.fillText(ANIM.gear, mcx, gearY);
+  CC.shadowBlur = 0;
+  CC.font = `400 ${7 * s}px 'Share Tech Mono', monospace`;
+  CC.fillStyle = 'rgba(255,255,255,.22)';
+  CC.fillText('GEAR', mcx, gearY + 34 * s);
+
+  // ── Divider ──
+  CC.strokeStyle = 'rgba(255,255,255,.07)'; CC.lineWidth = s;
+  CC.beginPath(); CC.moveTo(panelX + 16 * s, CH * 0.375); CC.lineTo(panelX + panelW - 16 * s, CH * 0.375); CC.stroke();
+
+  // ── Speed + RPM big number center ──
+  const spdY = CH * 0.53;
+  CC.font = `900 ${42 * s}px 'Orbitron', monospace`;
+  CC.textAlign = 'center'; CC.textBaseline = 'middle';
+  CC.fillStyle = '#ffffff';
+  CC.shadowColor = 'rgba(0,229,255,.6)'; CC.shadowBlur = 18 * s;
+  CC.fillText(Math.round(ANIM.speed), mcx, spdY);
+  CC.shadowBlur = 0;
+
+  CC.font = `400 ${8 * s}px 'Share Tech Mono', monospace`;
+  CC.fillStyle = 'rgba(0,229,255,.6)';
+  CC.fillText('km/h', mcx, spdY + 26 * s);
+
+  // ── Divider ──
+  CC.beginPath(); CC.moveTo(panelX + 16 * s, CH * 0.665); CC.lineTo(panelX + panelW - 16 * s, CH * 0.665); CC.stroke();
+
+  // ── Info row: TRIP | TEMP | BATT ──
+  const infoY = CH * 0.75;
+  const infoCols = [
+    { label: 'TRIP A', val: ANIM.trip.toFixed(1), color: '#00e5ff' },
+    { label: '°C', val: ANIM.temp > 0 ? Math.round(ANIM.temp) : '--', color: '#ff9100' },
+    { label: 'V BATT', val: ANIM.batt.toFixed(1), color: '#00e676' },
+  ];
+  infoCols.forEach((info, i) => {
+    const ix = panelX + (panelW / 4) + (panelW / 4) * i * 1.15;
+    CC.font = `700 ${12 * s}px 'Orbitron', monospace`;
+    CC.textAlign = 'center'; CC.textBaseline = 'middle';
+    CC.fillStyle = info.color;
+    CC.shadowColor = info.color; CC.shadowBlur = 6 * s;
+    CC.fillText(info.val, ix, infoY);
+    CC.shadowBlur = 0;
+    CC.font = `400 ${6.5 * s}px 'Share Tech Mono', monospace`;
+    CC.fillStyle = 'rgba(255,255,255,.22)';
+    CC.fillText(info.label, ix, infoY + 12 * s);
+  });
+
+  // ── Fuel bar ──
+  const fbY = CH * 0.865;
+  const fbW = panelW * 0.65, fbH = 4 * s;
+  const fbX = mcx - fbW / 2;
+  CC.font = `400 ${6.5 * s}px 'Share Tech Mono', monospace`;
+  CC.fillStyle = 'rgba(255,255,255,.2)';
+  CC.textAlign = 'left'; CC.fillText('⛽', fbX, fbY - 8 * s);
+  CC.textAlign = 'right'; CC.fillText(Math.round(ANIM.fuel * 100) + '%', fbX + fbW, fbY - 8 * s);
+  CC.fillStyle = 'rgba(255,255,255,.05)';
+  roundedRect(CC, fbX, fbY, fbW, fbH, fbH / 2);
+  CC.fill();
+  const fg = CC.createLinearGradient(fbX, 0, fbX + fbW, 0);
+  fg.addColorStop(0, '#ff6d00'); fg.addColorStop(1, '#ffcc00');
+  CC.fillStyle = fg;
+  CC.shadowColor = 'rgba(255,200,0,.4)'; CC.shadowBlur = 6 * s;
+  roundedRect(CC, fbX, fbY, fbW * ANIM.fuel, fbH, fbH / 2);
+  CC.fill(); CC.shadowBlur = 0;
+
+  // ── Telltale indicators row ──
+  const indY = CH * 0.925;
+  const inds = [
+    { color: '#00e5ff', on: ANIM.ind_highbeam, label: '◈' },
+    { color: '#00e676', on: ANIM.ind_turn_l, label: '◄' },
+    { color: '#00e676', on: ANIM.ind_neutral, label: 'N' },
+    { color: '#00e676', on: ANIM.ind_turn_r, label: '►' },
+    { color: '#ff1744', on: ANIM.ind_engine, label: '⚙' },
+    { color: '#00e5ff', on: ANIM.ind_ready, label: '✓' },
+  ];
+  const indSpacing = 22 * s;
+  const indStartX = mcx - (inds.length - 1) * indSpacing / 2;
+  inds.forEach((ind, i) => {
+    const ix = indStartX + i * indSpacing;
+    CC.beginPath(); CC.arc(ix, indY, 4 * s, 0, Math.PI * 2);
+    if (ind.on) {
+      CC.fillStyle = ind.color;
+      CC.shadowColor = ind.color; CC.shadowBlur = 10 * s;
+    } else {
+      CC.fillStyle = 'rgba(255,255,255,.08)';
+      CC.shadowBlur = 0;
+    }
+    CC.fill(); CC.shadowBlur = 0;
+  });
+
+  // ── ODO strip ──
+  CC.font = `400 ${7 * s}px 'Share Tech Mono', monospace`;
+  CC.textAlign = 'left'; CC.textBaseline = 'middle';
+  CC.fillStyle = 'rgba(255,255,255,.15)';
+  CC.fillText('ODO ' + String(Math.round(ANIM.odo)).padStart(6,'0') + ' km', panelX + 12 * s, CH * 0.955);
+
+  // ── Clock / status top ──
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  CC.font = `700 ${9 * s}px 'Share Tech Mono', monospace`;
+  CC.textAlign = 'right'; CC.fillStyle = 'rgba(255,255,255,.2)';
+  CC.fillText(timeStr, panelX + panelW - 12 * s, CH * 0.055);
+
+  // brand
+  CC.font = `700 ${7.5 * s}px 'Orbitron', sans-serif`;
+  CC.textAlign = 'center';
+  CC.fillStyle = 'rgba(255,255,255,.1)';
+  CC.fillText('CANoe · DiVa', mcx, CH * 0.055);
+}
+
+// ── Helpers ──
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+function roundedRect(ctx, x, y, w, h, r) {
+  if(w<=0)return;r=Math.min(r,w/2,h/2);
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+function lerp(a,b,t){return a+(b-a)*t}
+function easeOut3(t){return 1-Math.pow(1-t,3)}
+function easeInOut(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2}
+
+// ── Sequence ──
+const SEQ = [
+  // [startMs, endMs, rpmTarget, spdTarget, gear]
+  {t0:  700, t1: 1100, rpm: 6500,  spd: 100, gear:'3'},
+  {t0: 1100, t1: 1500, rpm:10200,  spd: 200, gear:'5'},
+  {t0: 1500, t1: 2000, rpm:  850,  spd:   0, gear:'N'},
+  
+  
+  
+];
+
+function updateAnimState(elapsed) {
+  ANIM.t = elapsed;
+
+  // Phase control
+  if (elapsed < 300) { ANIM.phase = 'boot'; return; }
+  if (elapsed < 700) {
+    ANIM.phase = 'selftest';
+    ANIM.temp = lerp(0, 85, Math.min(1, (elapsed - 300) / 400));
+    ANIM.ind_engine = elapsed > 350 && elapsed < 620;
+    ANIM.ind_neutral = true;
+    ANIM.odo = lerp(0, 12450, Math.min(1, (elapsed - 300) / 400));
+    return;
+  }
+  ANIM.phase = 'sweep';
+  ANIM.ind_engine = false;
+  ANIM.ind_neutral = ANIM.gear === 'N';
+
+  // Walk through sequence
+  let seqIdx = -1;
+  for (let i = 0; i < SEQ.length; i++) {
+    if (elapsed >= SEQ[i].t0 && elapsed <= SEQ[i].t1) { seqIdx = i; break; }
+    if (elapsed > SEQ[i].t1) seqIdx = i;
+  }
+
+  if (seqIdx >= 0) {
+    const s = SEQ[seqIdx];
+    const next = SEQ[seqIdx + 1];
+    if (elapsed >= s.t0 && elapsed <= s.t1) {
+      const p = easeOut3((elapsed - s.t0) / (s.t1 - s.t0));
+      const prev = seqIdx > 0 ? SEQ[seqIdx - 1] : {rpm: 0, spd: 0};
+      ANIM.rpm = lerp(seqIdx === 0 ? 0 : SEQ[seqIdx-1].rpm, s.rpm, p);
+      ANIM.speed = lerp(seqIdx === 0 ? 0 : SEQ[seqIdx-1].spd, s.spd, p);
+      ANIM.gear = s.gear;
+    }
+  }
+
+  ANIM.ind_highbeam = elapsed > 1100 && elapsed < 1800;
+  ANIM.ind_turn_l = elapsed > 1200 && elapsed < 1500;
+  ANIM.ind_turn_r = elapsed > 1500 && elapsed < 1800;
+  ANIM.ind_neutral = ANIM.gear === 'N';
+  ANIM.ind_ready = elapsed > 2400;
+  ANIM.trip = Math.min(24.7, (elapsed - 700) / 60);
+  ANIM.temp = 85 + Math.sin(elapsed / 600) * 8;
+  ANIM.batt = 12.6 + Math.sin(elapsed / 900) * 0.4;
+  ANIM.odo = 12450 + (elapsed - 700) / 80;
+  ANIM.fuel = 0.72 - (elapsed - 700) / 600000;
+
+  // Final settle
+  if (elapsed > 2600) {
+    ANIM.rpm = lerp(ANIM.rpm, 850, 0.06);
+    ANIM.speed = lerp(ANIM.speed, 0, 0.06);
+    ANIM.gear = 'N';
+    ANIM.ind_neutral = true;
+    ANIM.ind_ready = true;
+    ANIM.ind_highbeam = false;
+    ANIM.ind_turn_l = false;
+    ANIM.ind_turn_r = false;
+    ANIM.phase = 'done';
+  }
+}
+
+// ── Main cluster loop ──
+let clusterStart = null;
+function clusterLoop(ts) {
+  if (!clusterStart) clusterStart = ts;
+  const elapsed = ts - clusterStart;
+  updateAnimState(elapsed);
+  drawCluster(elapsed);
+  if (!clusterExited) {
+    clusterRAF = requestAnimationFrame(clusterLoop);
+    if (elapsed > 3600) exitCluster();
+  }
+}
+requestAnimationFrame(clusterLoop);
+
+// ── Exit cluster ──
+function exitCluster() {
+  if (clusterExited) return;
+  clusterExited = true;
+  if (clusterRAF) cancelAnimationFrame(clusterRAF);
+  const ov = document.getElementById('clusterOverlay');
+  ov.classList.add('hidden');
+  setTimeout(() => {
+    ov.style.display = 'none';
+    document.getElementById('appWrap').classList.add('show');
+  }, 950);
+}
+
+document.getElementById('clusterOverlay').addEventListener('click', exitCluster);
+
+/* ══════════════════════════════════════════
+   SCREEN MANAGER
+══════════════════════════════════════════ */
+function goTo(id){
+  document.querySelector(".top-bar").style.display=(id==="sReport")?"none":"flex";
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none'});
+  const el=document.getElementById(id);el.style.display='flex';el.classList.add('active');
+}
+
+/* ══════════════════════════════════════════
+   FILE HANDLING
+══════════════════════════════════════════ */
+const dz=document.getElementById('dropZone'),fi=document.getElementById('fileInput');
+let pending=null;
+dz.addEventListener('click',()=>fi.click());
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0])});
+fi.addEventListener('change',()=>{if(fi.files[0])handleFile(fi.files[0])});
+
+function handleFile(file){
+  document.getElementById('uerr').style.display='none';
+  const r=new FileReader();
+  r.onload=e=>{
+    try{const raw=e.target.result;const rows=parseLog(raw);if(!rows.length)throw new Error('empty');
+      pending={file,raw,rows};
+      document.getElementById('dfname').innerText=file.name;
+      document.getElementById('dfsize').innerText=fmtSz(file.size);
+      document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
+      goTo('sDetails');
+    }catch(err){document.getElementById('uerr').style.display='block';console.error(err)}
+  };r.readAsText(file,'utf-8');
+}
+function fmtSz(b){return b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(1)+'MB'}
+
+/* ══════════════════════════════════════════
+   PARSE ANIMATION
+══════════════════════════════════════════ */
+function startParsing(){
+  goTo('sParsing');
+  const steps=[{id:'ps1',sub:'READING WRITE WINDOW LOG...',pct:15,t:350},{id:'ps2x',sub:'PARSING CAPL TEST BLOCKS...',pct:35,t:680},{id:'ps3',sub:'EXTRACTING SIGNAL STATES...',pct:55,t:1010},{id:'ps4',sub:'DEDUPLICATING TEST INDICES...',pct:72,t:1320},{id:'ps5',sub:'COMPUTING STATISTICS...',pct:88,t:1600},{id:'ps6',sub:'BUILDING REPORT DATA...',pct:100,t:1880}];
+  document.querySelectorAll('.pstep').forEach(s=>{s.className='pstep'});
+  animBar(0);
+  steps.forEach((s,i)=>{setTimeout(()=>{if(i>0)document.getElementById(steps[i-1].id).className='pstep done';document.getElementById(s.id).className='pstep active';document.getElementById('psub').innerText=s.sub;animBar(s.pct)},s.t)});
+  setTimeout(()=>{document.getElementById('ps6').className='pstep done';buildReport()},2400);
+}
+function animBar(target){
+  const bar=document.getElementById('pbf'),pct=document.getElementById('ppct');
+  const start=parseInt(bar.style.width)||0,t0=performance.now();
+  const step=now=>{const p=Math.min((now-t0)/260,1),v=Math.round(start+(target-start)*p);bar.style.width=v+'%';pct.innerText=v+'%';if(p<1)requestAnimationFrame(step)};
+  requestAnimationFrame(step);
+}
+
+/* ══════════════════════════════════════════
+   PARSER
+══════════════════════════════════════════ */
+function parseLog(raw){
+  const lines=raw.split('\n');const tests=[];let cur=null;
+  const keep=t=>t&&('Index' in t)&&!!(t.Result||t.Request||t.Expected||(t.Responses&&t.Responses.length));
+  for(let line of lines){
+    line=line.replace(/\r$/,'');const m=line.match(/^\s*CAPL[\t ]+(.*)/);if(!m)continue;
+    const content=m[1].trim();if(!content)continue;
+    let key,value;
+    if(content.includes(':')){const i=content.indexOf(':');key=content.slice(0,i).trim().toUpperCase();value=content.slice(i+1).trim()}
+    else{const p=content.split(/\s+/);if(p.length<2)continue;key=p[0].toUpperCase();value=p.slice(1).join(' ').trim()}
+    if(key==='TEST'){if(cur&&keep(cur))tests.push(cur);cur={Responses:[]};const mt=value.match(/(\d+)\s*(?:\/|of)\s*(\d+)/i);if(mt){cur.Index=+mt[1];cur.TotalInRun=+mt[2]}continue}
+    if(!cur)continue;
+    if(key==='NAME'){cur.Name=value;if(!cur.Description)cur.Description=value}
+    else if(key==='DESC'||key==='DESCRIPTION')cur.Description=value;
+    else if(key==='CATEGORY')cur.Category=value;
+    else if(key==='REQ')cur.Request=value;
+    else if(key==='EXP')cur.Expected=value;
+    else if(key==='RSP'){if(!cur._rsp)cur._rsp=[];cur._rsp.push(value)}
+    else if(key==='RESULT'){cur.Responses=cur._rsp||[];delete cur._rsp;cur.Result=value;const me=value.match(/Expected\s+([0-9A-Fa-f][0-9A-Fa-f\s]+)/);if(me)cur.Expected=me[1].trim()}
+  }
+  if(cur&&keep(cur))tests.push(cur);
+  const seen={};for(const t of tests)if('Index' in t)seen[t.Index]=t;
+  const rows=Object.values(seen).map(t=>{const result=t.Result||'';let status='UNKNOWN';const ux=result.toUpperCase();if(ux.startsWith('PASS'))status='PASSED';else if(ux.includes('WARN')||ux.includes('NEGATIVE'))status='WARNING';else if(ux.trim())status='FAILED';
+    return{Index:t.Index,Category:t.Category||'General',Name:t.Name||'',Description:t.Description||t.Name||'',Request:t.Request||'',Expected:t.Expected||'',Response:(Array.isArray(t.Responses)&&t.Responses.length)?t.Responses.join(' | '):'',Status:status,Result:result}})
+    .filter(r=>r.Name&&String(r.Name).length);
+  rows.sort((a,b)=>a.Index-b.Index);return rows;
+}
+function calcSummary(rows,raw){
+  const m=raw.match(/TOTAL:\s*(\d+).*PASS:\s*(\d+).*FAIL:\s*(\d+)(?:.*WARN:\s*(\d+))?/is);
+  let total,passed,failed,warning;
+  if(m){total=+m[1];passed=+m[2];failed=+m[3];warning=+(m[4]||0)}
+  else{total=rows.length;passed=rows.filter(r=>r.Status==='PASSED').length;failed=rows.filter(r=>r.Status==='FAILED').length;warning=rows.filter(r=>r.Status==='WARNING').length}
+  return{total,passed,warning,failed,pass_rate:total?Math.round(passed/total*10000)/100:0};
+}
+function calcCats(rows){
+  const g={};for(const r of rows){if(!g[r.Category])g[r.Category]={PASSED:0,WARNING:0,FAILED:0,UNKNOWN:0};g[r.Category][r.Status]++}
+  return Object.entries(g).map(([c,v])=>({Category:c,PASSED:v.PASSED||0,WARNING:v.WARNING||0,FAILED:v.FAILED||0,TOTAL:(v.PASSED||0)+(v.WARNING||0)+(v.FAILED||0)+(v.UNKNOWN||0)})).sort((a,b)=>b.TOTAL-a.TOTAL);
+}
+
+/* ══════════════════════════════════════════
+   REPORT
+══════════════════════════════════════════ */
+let G={rows:[],failRows:[],summary:{},catRows:[],fileName:'',raw:'',meta:{}};
+let dtA=null,dtF=null,dc2=null,bc2=null;
+
+function buildReport(){
+  const{file,raw,rows}=pending;
+  const summary=calcSummary(rows,raw),catRows=calcCats(rows),failRows=rows.filter(r=>r.Status==='FAILED');
+  const meta={tester:document.getElementById('fTester').value.trim(),project:document.getElementById('fProject').value.trim(),variant:document.getElementById('fVariant').value.trim(),sw:document.getElementById('fSw').value.trim(),date:document.getElementById('fDate').value};
+  G={rows,failRows,summary,catRows,fileName:file.name,raw,meta};renderReport();
+}
+
+function renderReport(){
+  const{rows,failRows,summary,catRows,fileName,meta}=G;
+  document.getElementById('rfn').innerText=fileName;
+  document.getElementById('tbr').innerText='REPORT: '+fileName;
+  const chips=[];
+  if(meta.tester)chips.push({l:'Tester',v:meta.tester});if(meta.project)chips.push({l:'Project',v:meta.project});
+  if(meta.variant)chips.push({l:'Variant',v:meta.variant});if(meta.sw)chips.push({l:'SW',v:meta.sw});
+  if(meta.date)chips.push({l:'Date',v:meta.date});chips.push({l:'Generated',v:new Date().toLocaleTimeString()});
+  document.getElementById('mstrip').innerHTML=chips.map(c=>`<div class="mchip"><span class="mlbl">${c.l}</span><span class="mval">${esc(c.v)}</span></div>`).join('');
+  let sb='';
+  for(const r of catRows.slice(0,22)){const t=r.TOTAL||1;sb+=`<div class="catrow"><div class="catname">${esc(r.Category)}</div><div class="catnums">${r.PASSED}P &nbsp;${r.WARNING}W &nbsp;${r.FAILED}F</div><div class="pt"><div class="pp" style="width:${Math.round(r.PASSED/t*100)}%"></div><div class="pw" style="width:${Math.round(r.WARNING/t*100)}%"></div><div class="pf" style="width:${Math.round(r.FAILED/t*100)}%"></div></div></div>`}
+  document.getElementById('sbcats').innerHTML=sb||'<div style="color:var(--muted);font-size:10px">No categories.</div>';
+  document.getElementById('krow').innerHTML=`<div class="kc kt"><div class="kn">${summary.total}</div><div class="kl">Total</div></div><div class="kc kp"><div class="kn">${summary.passed}</div><div class="kl">Passed</div></div><div class="kc kw"><div class="kn">${summary.warning}</div><div class="kl">Warning</div></div><div class="kc kf"><div class="kn">${summary.failed}</div><div class="kl">Failed</div></div><div class="kc kr"><div class="kn">${summary.pass_rate}%</div><div class="kl">Pass Rate</div></div>`;
+  document.getElementById('sReport').style.display='flex';goTo('sReport');
+  if(dtA){dtA.destroy();dtA=null}if(dtF){dtF.destroy();dtF=null}
+  // small delay ensures DOM is visible before DataTables measures column widths
+  setTimeout(()=>{
+  $('#tAll thead').html('<tr><th>#</th><th>Category</th><th>Description</th><th>Status</th><th>Request</th><th>Expected</th><th>Response</th></tr>');
+  $('#tFail thead').html('<tr><th>#</th><th>Category</th><th>Description</th><th>Expected</th><th>Response</th><th>Result</th></tr>');
+  dtA=$('#tAll').DataTable({data:rows,pageLength:25,order:[[0,'asc']],columns:[{data:'Index'},{data:'Category'},{data:'Description'},{data:'Status',render:(d,t)=>t==='display'?sbadge(d):d},{data:'Request'},{data:'Expected'},{data:'Response'}],createdRow:(row,data)=>$(row).addClass('cr').on('click',()=>showDet(data))});
+  dtF=$('#tFail').DataTable({data:failRows,pageLength:25,order:[[0,'asc']],columns:[{data:'Index'},{data:'Category'},{data:'Description'},{data:'Expected'},{data:'Response'},{data:'Result'}],createdRow:(row,data)=>$(row).addClass('cr').on('click',()=>showDet(data))});
+  renderCharts();
+  },50);
+}
+function sbadge(s){if(s==='PASSED')return'<span class="sp spass">PASSED</span>';if(s==='WARNING')return'<span class="sp swarn">WARNING</span>';if(s==='UNKNOWN')return'<span class="sp sunk">UNKNOWN</span>';return'<span class="sp sfail">FAILED</span>'}
+function showDet(row){document.getElementById('mt').innerText='#'+row.Index+'  —  '+(row.Description||row.Name||'');document.getElementById('ms').innerText=(row.Category||'General').toUpperCase()+'  ·  '+row.Status;document.getElementById('mr').innerText=row.Request||'—';document.getElementById('me').innerText=row.Expected||'—';document.getElementById('mres').innerText=row.Response||'—';document.getElementById('mrl').innerText=row.Result||'—';new bootstrap.Modal(document.getElementById('detModal')).show()}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+/* ══════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════ */
+function renderCharts(){
+  const{summary,catRows}=G,TXT='#e4efff',M='#364d6e';
+  const{passed,warning,failed}=summary,tot=(passed+warning+failed)||1;
+  if(dc2)dc2.destroy();
+  const dEl=document.getElementById('dc');dEl.style.cursor='pointer';
+  dc2=new Chart(dEl,{type:'doughnut',data:{labels:['PASSED','WARNING','FAILED'],datasets:[{data:[passed,warning,failed],backgroundColor:['rgba(0,230,118,.82)','rgba(255,145,0,.82)','rgba(255,23,68,.82)'],borderWidth:0,hoverOffset:0,hoverBorderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',animation:false,transitions:{active:{animation:{duration:0}}},plugins:{legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:11,weight:'700'},padding:11}},title:{display:true,text:'PASS / WARN / FAIL',color:M,font:{family:'Share Tech Mono',size:8},padding:{bottom:4}},tooltip:{backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,titleFont:{family:'Orbitron',size:12},bodyFont:{family:'Share Tech Mono',size:10},callbacks:{label:c=>' '+c.label+': '+c.raw+' ('+(c.raw/tot*100).toFixed(2)+'%)'}}},onClick:(e,els)=>{if(els&&els.length)filterSt(dc2.data.labels[els[0].index])}}});
+  dEl.addEventListener('dblclick',resetF);
+  const top=catRows.slice(0,12),bL=top.map(r=>r.Category),bP=top.map(r=>r.PASSED),bW=top.map(r=>r.WARNING),bF=top.map(r=>r.FAILED);
+  if(bc2)bc2.destroy();
+  const bEl=document.getElementById('bc');bEl.style.cursor='pointer';
+  bc2=new Chart(bEl,{type:'bar',data:{labels:bL,datasets:[{label:'PASSED',data:bP,backgroundColor:'rgba(0,230,118,.72)',stack:'s'},{label:'WARNING',data:bW,backgroundColor:'rgba(255,145,0,.72)',stack:'s'},{label:'FAILED',data:bF,backgroundColor:'rgba(255,23,68,.72)',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,animation:false,scales:{x:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}},y:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}}},plugins:{legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:10,weight:'700'},padding:9}},title:{display:true,text:'CATEGORY OVERVIEW (TOP 12)',color:M,font:{family:'Share Tech Mono',size:8},padding:{bottom:4}},tooltip:{backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,titleFont:{family:'Orbitron',size:12},bodyFont:{family:'Share Tech Mono',size:10},callbacks:{label:c=>{const t=(bP[c.dataIndex]||0)+(bW[c.dataIndex]||0)+(bF[c.dataIndex]||0)||1;return' '+c.dataset.label+': '+c.raw+' ('+(c.raw/t*100).toFixed(1)+'%)'}}}},onClick:(e,els)=>{if(els&&els.length)filterCatSt(bc2.data.labels[els[0].index],['PASSED','WARNING','FAILED'][els[0].datasetIndex])}}});
+  bEl.addEventListener('dblclick',resetF);
+}
+function showAllTab(){document.querySelector('button[data-bs-target="#tabAll"]')?.click()}
+function resetF(){dtA.column(1).search('');dtA.column(3).search('');dtA.draw()}
+function filterSt(s){showAllTab();dtA.column(3).search('^'+s+'$',true,false).draw()}
+function filterCatSt(cat,s){showAllTab();dtA.column(1).search('^'+cat.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$',true,false);dtA.column(3).search('^'+s+'$',true,false);dtA.draw()}
+function resetAll(){pending=null;try{if(dtA){dtA.destroy();dtA=null}}catch(e){}try{if(dtF){dtF.destroy();dtF=null}}catch(e){}if(dc2){dc2.destroy();dc2=null}if(bc2){bc2.destroy();bc2=null}document.getElementById('tbr').innerText='UDS CAPL Report Generator';fi.value=''}
+
+/* ══════════════════════════════════════════
+   EXPORTS
+══════════════════════════════════════════ */
+function dlPDF(){
+  const{jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const{summary,rows,fileName,meta}=G;
+  doc.setFillColor(7,8,11);doc.rect(0,0,297,210,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(0,229,255);
+  doc.text('CANoe.DiVa — UDS CAPL Test Report',14,13);
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(54,77,110);
+  const ml=[meta.tester&&'Tester: '+meta.tester,meta.project&&'Project: '+meta.project,meta.variant&&'Variant: '+meta.variant,meta.sw&&'SW: '+meta.sw,meta.date&&'Date: '+meta.date].filter(Boolean).join('  |  ');
+  if(ml)doc.text(ml,14,19);
+  doc.text(`File: ${fileName}  |  Total: ${summary.total}  Passed: ${summary.passed}  Warning: ${summary.warning}  Failed: ${summary.failed}  Pass Rate: ${summary.pass_rate}%`,14,24);
+  doc.autoTable({startY:29,head:[['#','Category','Description','Status','Request','Expected','Response']],body:rows.map(r=>[r.Index,r.Category,r.Description,r.Status,r.Request||'',r.Expected||'',r.Response||'']),styles:{fontSize:6,cellPadding:1.4,textColor:[228,239,255],fillColor:[7,8,11]},headStyles:{fillColor:[12,14,20],textColor:[0,229,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[12,14,20]},columnStyles:{0:{cellWidth:10},1:{cellWidth:28},2:{cellWidth:52},3:{cellWidth:20},4:{cellWidth:38},5:{cellWidth:38},6:{cellWidth:38}},didParseCell:d=>{if(d.section==='body'&&d.column.index===3){if(d.cell.raw==='PASSED')d.cell.styles.textColor=[0,230,118];else if(d.cell.raw==='WARNING')d.cell.styles.textColor=[255,145,0];else if(d.cell.raw==='FAILED')d.cell.styles.textColor=[255,23,68]}}});
+  doc.save('CAPL_report.pdf');
+}
+function dlHTML(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([document.documentElement.outerHTML],{type:'text/html'}));a.download='CAPL_report.html';a.click()}
+document.getElementById('xlBtn').addEventListener('click',()=>{
+  const isFail=document.querySelector('.tab-pane.active').id==='tabFail',src=isFail?G.failRows:G.rows;
+  const data=src.map((r,i)=>({'S.No':i+1,'Category':r.Category,'Description':r.Description,'Status':r.Status,'Test Case Number':r.Index,'Request':r.Request||'','Expected':r.Expected||'','Actual Response':r.Response||'','Jira ID':''}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),'Test Results');XLSX.writeFile(wb,'CAPL_report.xlsx');
+});
+</script>
+</body>
+</html>
