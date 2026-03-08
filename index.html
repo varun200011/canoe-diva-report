@@ -841,91 +841,139 @@ function roundedRect(ctx, x, y, w, h, r) {
   ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
 }
 function lerp(a,b,t){return a+(b-a)*t}
-function easeOut3(t){return 1-Math.pow(1-t,3)}
-function easeInOut(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2}
 
-// ── Sequence ──
-const SEQ = [
-  // [startMs, endMs, rpmTarget, spdTarget, gear]
-  {t0:  700, t1: 1100, rpm: 6500,  spd: 100, gear:'3'},
-  {t0: 1100, t1: 1500, rpm:10200,  spd: 200, gear:'5'},
-  {t0: 1500, t1: 2000, rpm:  850,  spd:   0, gear:'N'},
-  
-  
-  
+// ══════════════════════════════════════════
+//  SPRING PHYSICS ENGINE
+//  Models a real gauge needle with mass,
+//  stiffness, damping — silky 60fps motion
+// ══════════════════════════════════════════
+function makeSpring(stiffness, damping, mass) {
+  // position, velocity, target
+  return { pos: 0, vel: 0, target: 0, stiffness, damping, mass };
+}
+function stepSpring(s, dt) {
+  // Clamp dt to avoid explosion on tab focus
+  const dtSec = Math.min(dt, 0.05);
+  const force  = -s.stiffness * (s.pos - s.target);
+  const damp   = -s.damping * s.vel;
+  const accel  = (force + damp) / s.mass;
+  s.vel += accel * dtSec;
+  s.pos += s.vel * dtSec;
+}
+
+// Two independent springs — one for RPM needle, one for speed needle
+// Stiffness: how fast it reacts | Damping: how quickly it settles | Mass: inertia
+// Real tachometer feel: moderate stiffness, slightly underdamped (small overshoot)
+const rpmSpring   = makeSpring(180, 22, 1.0);  // tacho — snappy with slight bounce
+const spdSpring   = makeSpring(120, 20, 1.2);  // speedo — slightly heavier feel
+
+// ── Scripted targets over time ──
+// Each entry: [timeMs, rpmTarget, spdTarget, gear]
+// The spring chases these targets — transitions are always smooth regardless of timing
+const SCRIPT = [
+  [0,    0,     0,   'N'],
+  [700,  0,     0,   'N'],   // self-test ends, needles at zero
+  [900,  4500,  70,  '2'],   // first blip — accelerate
+  [1300, 9800,  180, '5'],   // full throttle — redline!
+  [1650, 10800, 214, '6'],   // absolute top — needle kissing limiter
+  [2100, 1200,  20,  '2'],   // hard decel
+  [2600, 800,   0,   'N'],   // settle at idle
 ];
 
-function updateAnimState(elapsed) {
+let _scriptRpm = 0, _scriptSpd = 0, _scriptGear = 'N';
+
+function getScriptTargets(elapsed) {
+  // Find the two surrounding keyframes and interpolate target
+  let prev = SCRIPT[0], next = SCRIPT[SCRIPT.length - 1];
+  for (let i = 0; i < SCRIPT.length - 1; i++) {
+    if (elapsed >= SCRIPT[i][0] && elapsed <= SCRIPT[i+1][0]) {
+      prev = SCRIPT[i]; next = SCRIPT[i+1]; break;
+    }
+  }
+  if (elapsed < SCRIPT[0][0])  return { rpm: SCRIPT[0][1], spd: SCRIPT[0][2], gear: SCRIPT[0][3] };
+  if (elapsed > SCRIPT[SCRIPT.length-1][0]) return { rpm: SCRIPT[SCRIPT.length-1][1], spd: SCRIPT[SCRIPT.length-1][2], gear: SCRIPT[SCRIPT.length-1][3] };
+  const t = (elapsed - prev[0]) / (next[0] - prev[0]);
+  // smooth-step for target interpolation so the spring gets smooth targets too
+  const st = t * t * (3 - 2 * t);
+  return {
+    rpm:  lerp(prev[1], next[1], st),
+    spd:  lerp(prev[2], next[2], st),
+    gear: t < 0.5 ? prev[3] : next[3],
+  };
+}
+
+function updateAnimState(elapsed, dt) {
   ANIM.t = elapsed;
 
-  // Phase control
+  // ── Phase control ──
   if (elapsed < 300) { ANIM.phase = 'boot'; return; }
   if (elapsed < 700) {
     ANIM.phase = 'selftest';
-    ANIM.temp = lerp(0, 85, Math.min(1, (elapsed - 300) / 400));
-    ANIM.ind_engine = elapsed > 350 && elapsed < 620;
+    ANIM.temp  = lerp(0, 85, Math.min(1, (elapsed - 300) / 400));
+    ANIM.ind_engine  = elapsed > 350 && elapsed < 620;
     ANIM.ind_neutral = true;
     ANIM.odo = lerp(0, 12450, Math.min(1, (elapsed - 300) / 400));
+    // Springs sit at zero during boot
+    rpmSpring.target = 0; spdSpring.target = 0;
+    stepSpring(rpmSpring, dt); stepSpring(spdSpring, dt);
+    ANIM.rpm   = Math.max(0, rpmSpring.pos);
+    ANIM.speed = Math.max(0, spdSpring.pos);
     return;
   }
+
   ANIM.phase = 'sweep';
   ANIM.ind_engine = false;
-  ANIM.ind_neutral = ANIM.gear === 'N';
 
-  // Walk through sequence
-  let seqIdx = -1;
-  for (let i = 0; i < SEQ.length; i++) {
-    if (elapsed >= SEQ[i].t0 && elapsed <= SEQ[i].t1) { seqIdx = i; break; }
-    if (elapsed > SEQ[i].t1) seqIdx = i;
-  }
+  // ── Feed spring targets from script ──
+  const tgt = getScriptTargets(elapsed);
+  rpmSpring.target = tgt.rpm;
+  spdSpring.target = tgt.spd;
+  ANIM.gear = tgt.gear;
 
-  if (seqIdx >= 0) {
-    const s = SEQ[seqIdx];
-    const next = SEQ[seqIdx + 1];
-    if (elapsed >= s.t0 && elapsed <= s.t1) {
-      const p = easeOut3((elapsed - s.t0) / (s.t1 - s.t0));
-      const prev = seqIdx > 0 ? SEQ[seqIdx - 1] : {rpm: 0, spd: 0};
-      ANIM.rpm = lerp(seqIdx === 0 ? 0 : SEQ[seqIdx-1].rpm, s.rpm, p);
-      ANIM.speed = lerp(seqIdx === 0 ? 0 : SEQ[seqIdx-1].spd, s.spd, p);
-      ANIM.gear = s.gear;
-    }
-  }
+  // ── Step both springs forward by real frame delta ──
+  stepSpring(rpmSpring, dt);
+  stepSpring(spdSpring, dt);
 
-  ANIM.ind_highbeam = elapsed > 1100 && elapsed < 1800;
-  ANIM.ind_turn_l = elapsed > 1200 && elapsed < 1500;
-  ANIM.ind_turn_r = elapsed > 1500 && elapsed < 1800;
-  ANIM.ind_neutral = ANIM.gear === 'N';
-  ANIM.ind_ready = elapsed > 2400;
+  // Clamp to physical gauge limits
+  ANIM.rpm   = Math.max(0, Math.min(11500, rpmSpring.pos));
+  ANIM.speed = Math.max(0, Math.min(230,   spdSpring.pos));
+
+  // ── Telltales ──
+  ANIM.ind_highbeam = elapsed > 1100 && elapsed < 2000;
+  ANIM.ind_turn_l   = elapsed > 1200 && elapsed < 1550;
+  ANIM.ind_turn_r   = elapsed > 1600 && elapsed < 1950;
+  ANIM.ind_neutral  = ANIM.gear === 'N';
+  ANIM.ind_ready    = elapsed > 2700;
+  ANIM.ind_engine   = false;
+
+  // ── Auxiliary values ──
   ANIM.trip = Math.min(24.7, (elapsed - 700) / 60);
-  ANIM.temp = 85 + Math.sin(elapsed / 600) * 8;
-  ANIM.batt = 12.6 + Math.sin(elapsed / 900) * 0.4;
-  ANIM.odo = 12450 + (elapsed - 700) / 80;
-  ANIM.fuel = 0.72 - (elapsed - 700) / 600000;
+  ANIM.temp = 85 + Math.sin(elapsed / 800) * 6;
+  ANIM.batt = 12.6 + Math.sin(elapsed / 1100) * 0.3;
+  ANIM.odo  = 12450 + (elapsed - 700) / 80;
+  ANIM.fuel = 0.72;
 
-  // Final settle
-  if (elapsed > 2600) {
-    ANIM.rpm = lerp(ANIM.rpm, 850, 0.06);
-    ANIM.speed = lerp(ANIM.speed, 0, 0.06);
-    ANIM.gear = 'N';
-    ANIM.ind_neutral = true;
-    ANIM.ind_ready = true;
+  if (elapsed > 3000) {
     ANIM.ind_highbeam = false;
-    ANIM.ind_turn_l = false;
-    ANIM.ind_turn_r = false;
+    ANIM.ind_turn_l   = false;
+    ANIM.ind_turn_r   = false;
     ANIM.phase = 'done';
   }
 }
 
-// ── Main cluster loop ──
+// ── Main cluster loop — passes real frame delta to spring ──
 let clusterStart = null;
+let clusterPrevTs = null;
 function clusterLoop(ts) {
-  if (!clusterStart) clusterStart = ts;
+  if (!clusterStart) { clusterStart = ts; clusterPrevTs = ts; }
   const elapsed = ts - clusterStart;
-  updateAnimState(elapsed);
+  const dt = Math.min((ts - clusterPrevTs) / 1000, 0.05); // seconds, capped
+  clusterPrevTs = ts;
+  updateAnimState(elapsed, dt);
   drawCluster(elapsed);
   if (!clusterExited) {
     clusterRAF = requestAnimationFrame(clusterLoop);
-    if (elapsed > 3600) exitCluster();
+    if (elapsed > 3800) exitCluster();
   }
 }
 requestAnimationFrame(clusterLoop);
