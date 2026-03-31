@@ -889,7 +889,7 @@ $(function(){
           var cat=bcChart.data.labels[els[0].index];
           var statusLabel=['PASSED','WARNING','FAILED'][els[0].datasetIndex];
           showTab('all',document.querySelector('#tabNav .nav-link'));
-          dtA.column(1).search('^'+cat.replace(/[.*+?^${}()|[\\\]\\\\]/g,'\\\\$&')+'$',true,false);
+          dtA.column(1).search('^'+cat.replace(/[\\^$.*+?()[\]{}|]/g,'\\$&')+'$',true,false);
           dtA.column(3).search('^'+statusLabel+'$',true,false).draw();
         }
       }
