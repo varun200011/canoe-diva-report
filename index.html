@@ -446,20 +446,20 @@ function showDet(row){document.getElementById('mt').innerText='#'+row.Index+'  �
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
 /* CHARTS */
-function renderCharts(){const{summary,catRows}=G,TXT='#e4efff',M='#364d6e';const{passed,warning,failed}=summary,tot=(passed+warning+failed)||1;if(dc2)dc2.destroy();const dEl=document.getElementById('dc');dEl.style.cursor='pointer';dc2=new Chart(dEl,{type:'doughnut',data:{labels:['PASSED','WARNING','FAILED'],datasets:[{data:[passed,warning,failed],backgroundColor:['rgba(0,230,118,.82)','rgba(255,145,0,.82)','rgba(255,23,68,.82)'],borderWidth:0,hoverOffset:0,hoverBorderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',animation:false,transitions:{active:{animation:{duration:0}}},plugins:{legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:11,weight:'700'},padding:11}},title:{display:true,text:'PASS / WARN / FAIL',color:M,font:{family:'Share Tech Mono',size:8},padding:{bottom:4}},tooltip:{backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,titleFont:{family:'Orbitron',size:12},bodyFont:{family:'Share Tech Mono',size:10},callbacks:{label:c=>' '+c.label+': '+c.raw+' ('+(c.raw/tot*100).toFixed(2)+'%)'}}},onClick:(e,els)=>{if(els&&els.length)filterSt(dc2.data.labels[els[0].index])}}});dEl.addEventListener('dblclick',resetF);const top=catRows.slice(0,12),bL=top.map(r=>r.Category),bP=top.map(r=>r.PASSED),bW=top.map(r=>r.WARNING),bF=top.map(r=>r.FAILED);if(bc2)bc2.destroy();const bEl=document.getElementById('bc');bEl.style.cursor='pointer';bc2=new Chart(bEl,{type:'bar',data:{labels:bL,datasets:[{label:'PASSED',data:bP,backgroundColor:'rgba(0,230,118,.72)',stack:'s'},{label:'WARNING',data:bW,backgroundColor:'rgba(255,145,0,.72)',stack:'s'},{label:'FAILED',data:bF,backgroundColor:'rgba(255,23,68,.72)',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,animation:false,scales:{x:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}},y:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}}},plugins:{legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:10,weight:'700'},padding:9}},title:{display:true,text:'CATEGORY OVERVIEW (TOP 12)',color:M,font:{family:'Share Tech Mono',size:8},padding:{bottom:4}},tooltip:{backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,titleFont:{family:'Orbitron',size:12},bodyFont:{family:'Share Tech Mono',size:10},callbacks:{label:c=>{const t=(bP[c.dataIndex]||0)+(bW[c.dataIndex]||0)+(bF[c.dataIndex]||0)||1;return' '+c.dataset.label+': '+c.raw+' ('+(c.raw/t*100).toFixed(1)+'%)'}}}},onClick:(e,els)=>{if(els&&els.length)filterCatSt(bc2.data.labels[els[0].index],['PASSED','WARNING','FAILED'][els[0].datasetIndex])}}});bEl.addEventListener('dblclick',resetF)}
+function renderCharts(){const{summary,catRows}=G,TXT='#e4efff',M='#364d6e';const{passed,warning,failed}=summary,tot=(passed+warning+failed)||1;if(dc2)dc2.destroy();const dEl=document.getElementById('dc');dEl.style.cursor='pointer';dc2=new Chart(dEl,{type:'doughnut',data:{labels:['PASSED','WARNING','FAILED'],datasets:[{data:[passed,warning,failed],backgroundColor:['rgba(0,230,118,.82)','rgba(255,145,0,.82)','rgba(255,23,68,.82)'],borderWidth:0,hoverOffset:0,hoverBorderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',animation:false,transitions:{active:{animation:{duration:0}}},plugins:{legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:11,weight:'700'},padding:11}},title:{display:true,text:'CLICK SLICE TO FILTER — DBL-CLICK TO RESET',color:M,font:{family:'Share Tech Mono',size:8},padding:{bottom:4}},tooltip:{backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,titleFont:{family:'Orbitron',size:12},bodyFont:{family:'Share Tech Mono',size:10},callbacks:{label:c=>' '+c.label+': '+c.raw+' ('+(c.raw/tot*100).toFixed(2)+'%)'}}},onClick:(e,els)=>{if(els&&els.length){const label=dc2.data.labels[els[0].index];filterSt(label)}}}});dEl.addEventListener('dblclick',resetF);const top=catRows.slice(0,12),bL=top.map(r=>r.Category),bP=top.map(r=>r.PASSED),bW=top.map(r=>r.WARNING),bF=top.map(r=>r.FAILED);if(bc2)bc2.destroy();const bEl=document.getElementById('bc');bEl.style.cursor='pointer';bc2=new Chart(bEl,{type:'bar',data:{labels:bL,datasets:[{label:'PASSED',data:bP,backgroundColor:'rgba(0,230,118,.72)',stack:'s'},{label:'WARNING',data:bW,backgroundColor:'rgba(255,145,0,.72)',stack:'s'},{label:'FAILED',data:bF,backgroundColor:'rgba(255,23,68,.72)',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,animation:false,scales:{x:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}},y:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}}},plugins:{legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:10,weight:'700'},padding:9}},title:{display:true,text:'CATEGORY OVERVIEW (TOP 12)',color:M,font:{family:'Share Tech Mono',size:8},padding:{bottom:4}},tooltip:{backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,titleFont:{family:'Orbitron',size:12},bodyFont:{family:'Share Tech Mono',size:10},callbacks:{label:c=>{const t=(bP[c.dataIndex]||0)+(bW[c.dataIndex]||0)+(bF[c.dataIndex]||0)||1;return' '+c.dataset.label+': '+c.raw+' ('+(c.raw/t*100).toFixed(1)+'%)'}}}},onClick:(e,els)=>{if(els&&els.length)filterCatSt(bc2.data.labels[els[0].index],['PASSED','WARNING','FAILED'][els[0].datasetIndex])}}});bEl.addEventListener('dblclick',resetF)}
 function showAllTab(){document.querySelector('button[data-bs-target="#tabAll"]')?.click()}
 function resetF(){dtA.column(1).search('');dtA.column(3).search('');dtA.draw()}
 function filterSt(s){showAllTab();dtA.column(3).search('^'+s+'$',true,false).draw()}
 function filterCatSt(cat,s){showAllTab();dtA.column(1).search('^'+cat.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$',true,false);dtA.column(3).search('^'+s+'$',true,false);dtA.draw()}
 function resetAll(){pending=null;try{if(dtA){dtA.destroy();dtA=null}}catch(e){}try{if(dtF){dtF.destroy();dtF=null}}catch(e){}if(dc2){dc2.destroy();dc2=null}if(bc2){bc2.destroy();bc2=null}document.getElementById('tbr').innerText='UDS CAPL Report Generator';fi.value=''}
 
-/* ══════════════════════════════════════════
-   EXPORTS — FIXED VERSION
-   The exported HTML is fully self-contained.
-   Data is baked as JSON into a <script> tag.
-   Charts + DataTables init from that JSON on load.
-   No fragile regex self-rewriting.
-══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   EXPORTS
+   FIX 1: Pie chart click filter wired in INNER_JS
+   FIX 2: Edit-persistence uses DATA.rows written on every
+          input/change event — NOT a DOM scrape at export time,
+          which breaks for paginated DataTables rows off-screen.
+═══════════════════════════════════════════════════════════ */
 
 function dlHTML(){
   var d=G;
@@ -480,7 +480,7 @@ function dlHTML(){
 function generateReportHTML(rows,catRows,summary,fileName,metaHdr){
   var e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
 
-  // Bake DATA as JSON — this is the single source of truth in the exported file
+  // Bake DATA as JSON — single source of truth in exported file
   var bakedData=JSON.stringify({
     rows:rows.map(function(r){return{Index:r.Index,Category:r.Category,Name:r.Name,Description:r.Description,Request:r.Request,Expected:r.Expected,Response:r.Response,Status:r.Status,Result:r.Result}}),
     catRows:catRows.map(function(r){return{Category:r.Category,PASSED:r.PASSED,WARNING:r.WARNING,FAILED:r.FAILED,TOTAL:r.TOTAL}}),
@@ -489,17 +489,19 @@ function generateReportHTML(rows,catRows,summary,fileName,metaHdr){
     metaHdr:metaHdr
   });
 
-  // Build table bodies from rows array
+  // Build table bodies — status as editable dropdown, cells as contenteditable
   var sc=function(s){return '<td class="status-cell"><select class="status-sel" data-v="'+s+'" onchange="onStatusChange(this)"><option value="PASSED"'+(s==='PASSED'?' selected':'')+'>PASSED</option><option value="WARNING"'+(s==='WARNING'?' selected':'')+'>WARNING</option><option value="FAILED"'+(s==='FAILED'?' selected':'')+'>FAILED</option><option value="UNKNOWN"'+(s==='UNKNOWN'?' selected':'')+'>UNKNOWN</option></select></td>'};
-  var ec=function(v,m){return '<td contenteditable="true" spellcheck="false" class="edit-cell'+(m?' mono':'')+'" oninput="markDirty(this)">'+e(v)+'</td>'};
+  var ec=function(v,m){return '<td contenteditable="true" spellcheck="false" class="edit-cell'+(m?' mono':'')+'" oninput="onCellEdit(this)">'+e(v)+'</td>'};
 
   var tBody=rows.map(function(r,i){
     return '<tr data-idx="'+i+'"><td>'+r.Index+'</td>'+ec(r.Category)+ec(r.Description)+sc(r.Status)+ec(r.Request,true)+ec(r.Expected,true)+ec(r.Response,true)+'</tr>';
   }).join('');
 
   var fRows=rows.filter(function(r){return r.Status==='FAILED'||r.Status==='WARNING'});
-  var fBody=fRows.map(function(r,i){
-    return '<tr data-fidx="'+i+'"><td>'+r.Index+'</td>'+ec(r.Category)+ec(r.Description)+ec(r.Expected,true)+ec(r.Response,true)+sc(r.Status)+'</tr>';
+  var fBody=fRows.map(function(r){
+    // Use the real index in rows[] so onStatusChange can write to DATA.rows[idx] correctly
+    var realIdx=rows.indexOf(r);
+    return '<tr data-idx="'+realIdx+'"><td>'+r.Index+'</td>'+ec(r.Category)+ec(r.Description)+ec(r.Expected,true)+ec(r.Response,true)+sc(r.Status)+'</tr>';
   }).join('');
 
   var catSB=catRows.slice(0,22).map(function(r){
@@ -509,7 +511,6 @@ function generateReportHTML(rows,catRows,summary,fileName,metaHdr){
 
   var s=summary;
 
-  // CSS for the exported report
   var RCSS=':root{--bg:#07080b;--bg2:#0c0e14;--b1:#14192a;--b2:#1c2640;--text:#e4efff;--muted:#364d6e;--cyan:#00e5ff;--amber:#ff9100;--green:#00e676;--red:#ff1744}'
     +'*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--text);font-family:"Exo 2",sans-serif}'
     +'.topbar{background:rgba(7,8,11,.97);border-bottom:1px solid var(--b1);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap}'
@@ -559,87 +560,22 @@ function generateReportHTML(rows,catRows,summary,fileName,metaHdr){
     +'hr.hd{border:none;border-top:1px solid var(--b1);margin:10px 0}'
     +'@media(max-width:860px){.shell{grid-template-columns:1fr}.krow{grid-template-columns:repeat(3,1fr)}}';
 
-  // The self-contained JS for the exported HTML
-  // DATA is injected as a script tag with id="baked-data" (type=application/json) to avoid escaping issues
+  // ─────────────────────────────────────────────────────────────
+  // INNER_JS — the JS embedded in every exported HTML
+  //
+  // KEY FIXES:
+  //  1. onCellEdit() writes directly to DATA.rows[idx] on every
+  //     keystroke — not at export time — so paginated rows
+  //     (never rendered in DOM when Save is clicked) are safe.
+  //  2. dcChart onClick handler is fully wired up.
+  //  3. reExport() just reads DATA.rows as-is (already current).
+  // ─────────────────────────────────────────────────────────────
   var INNER_JS=`
 var DATA=JSON.parse(document.getElementById('baked-data').textContent);
-var dcChart,bcChart,dtA,dtF,dirty=false;
+var dcChart,bcChart,dtA,dtF;
 
-function showTab(t,btn){
-  document.getElementById('tabAll').style.display=t==='all'?'':'none';
-  document.getElementById('tabFail').style.display=t==='fail'?'':'none';
-  document.querySelectorAll('#tabNav .nav-link').forEach(function(b){b.classList.remove('active')});
-  btn.classList.add('active');
-  if(t==='all'&&dtA)dtA.columns.adjust().draw();
-  if(t==='fail'&&dtF)dtF.columns.adjust().draw();
-}
-
-function syncAll(){
-  document.querySelectorAll('#tAll tbody tr[data-idx]').forEach(function(tr){
-    var idx=parseInt(tr.getAttribute('data-idx'));
-    if(isNaN(idx)||!DATA.rows[idx])return;
-    var tds=tr.querySelectorAll('td');
-    var sel=tr.querySelector('.status-sel');
-    if(tds[1])DATA.rows[idx].Category=tds[1].textContent.trim();
-    if(tds[2])DATA.rows[idx].Description=tds[2].textContent.trim();
-    if(sel)DATA.rows[idx].Status=sel.value;
-    if(tds[4])DATA.rows[idx].Request=tds[4].textContent.trim();
-    if(tds[5])DATA.rows[idx].Expected=tds[5].textContent.trim();
-    if(tds[6])DATA.rows[idx].Response=tds[6].textContent.trim();
-  });
-  recomp();
-}
-
-function markDirty(cell){
-  dirty=true;
-  document.getElementById('dirtyBadge').classList.add('show');
-  if(cell){
-    var tr=cell.closest('tr');
-    if(tr){
-      var idx=parseInt(tr.getAttribute('data-idx'));
-      if(!isNaN(idx)&&DATA.rows[idx]){
-        var tds=tr.querySelectorAll('td');
-        var sel=tr.querySelector('.status-sel');
-        if(tds[1])DATA.rows[idx].Category=tds[1].textContent.trim();
-        if(tds[2])DATA.rows[idx].Description=tds[2].textContent.trim();
-        if(sel)DATA.rows[idx].Status=sel.value;
-        if(tds[4])DATA.rows[idx].Request=tds[4].textContent.trim();
-        if(tds[5])DATA.rows[idx].Expected=tds[5].textContent.trim();
-        if(tds[6])DATA.rows[idx].Response=tds[6].textContent.trim();
-      }
-    }
-  }
-}
-
+/* ── helpers ── */
 function colourSel(sel){sel.setAttribute('data-v',sel.value);}
-
-function recomp(){
-  var p=0,w=0,f=0,n=DATA.rows.length;
-  DATA.rows.forEach(function(r){
-    if(r.Status==='PASSED')p++;else if(r.Status==='WARNING')w++;else if(r.Status==='FAILED')f++;
-  });
-  DATA.summary={passed:p,warning:w,failed:f,total:n,pass_rate:n?Math.round(p/n*10000)/100:0};
-}
-
-function onStatusChange(sel){
-  colourSel(sel);
-  var tr=sel.closest('tr');
-  var idx=parseInt(tr.getAttribute('data-idx'));
-  if(!isNaN(idx)&&DATA.rows[idx]){
-    DATA.rows[idx].Status=sel.value;
-    recomp();updateKPIs();updateCharts();updateSidebar();
-  }
-  markDirty();
-}
-
-function updateKPIs(){
-  var s=DATA.summary;
-  document.getElementById('kTotal').textContent=s.total;
-  document.getElementById('kPassed').textContent=s.passed;
-  document.getElementById('kWarning').textContent=s.warning;
-  document.getElementById('kFailed').textContent=s.failed;
-  document.getElementById('kRate').textContent=s.pass_rate+'%';
-}
 
 function getCatMap(){
   var m={};
@@ -649,6 +585,79 @@ function getCatMap(){
     m[c][r.Status]=(m[c][r.Status]||0)+1;
   });
   return m;
+}
+
+function recomp(){
+  var p=0,w=0,f=0,n=DATA.rows.length;
+  DATA.rows.forEach(function(r){
+    if(r.Status==='PASSED')p++;
+    else if(r.Status==='WARNING')w++;
+    else if(r.Status==='FAILED')f++;
+  });
+  DATA.summary={passed:p,warning:w,failed:f,total:n,pass_rate:n?Math.round(p/n*10000)/100:0};
+}
+
+/* ── FIX 2: write to DATA.rows on every cell edit ── */
+function onCellEdit(cell){
+  var tr=cell.closest('tr');
+  if(!tr)return;
+  var idx=parseInt(tr.getAttribute('data-idx'));
+  if(isNaN(idx)||!DATA.rows[idx])return;
+  var tds=tr.querySelectorAll('td');
+  /* column order: #, Category, Description, Status(sel), Request, Expected, Response */
+  if(tds[1])DATA.rows[idx].Category=tds[1].textContent.trim();
+  if(tds[2])DATA.rows[idx].Description=tds[2].textContent.trim();
+  if(tds[4])DATA.rows[idx].Request=tds[4].textContent.trim();
+  if(tds[5])DATA.rows[idx].Expected=tds[5].textContent.trim();
+  if(tds[6])DATA.rows[idx].Response=tds[6].textContent.trim();
+  markDirty();
+}
+
+function markDirty(){
+  document.getElementById('dirtyBadge').classList.add('show');
+}
+
+function onStatusChange(sel){
+  colourSel(sel);
+  var tr=sel.closest('tr');
+  /* Both All-tab and Fail-tab rows now carry data-idx = real index in DATA.rows */
+  var idx=parseInt(tr.getAttribute('data-idx'));
+  if(!isNaN(idx)&&DATA.rows[idx]){
+    DATA.rows[idx].Status=sel.value;
+    recomp();
+    updateKPIs();
+    updateCharts();
+    updateSidebar();
+    rebuildFailTab();  /* keep failures tab in sync with new statuses */
+  }
+  markDirty();
+}
+
+/* Rebuild the Failures tab from current DATA.rows so promoted/demoted rows appear immediately */
+function rebuildFailTab(){
+  var e2=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+  var sc2=function(sv,ridx){return '<td class="status-cell"><select class="status-sel" data-v="'+sv+'" onchange="onStatusChange(this)"><option value="PASSED"'+(sv==='PASSED'?' selected':'')+'>PASSED</option><option value="WARNING"'+(sv==='WARNING'?' selected':'')+'>WARNING</option><option value="FAILED"'+(sv==='FAILED'?' selected':'')+'>FAILED</option><option value="UNKNOWN"'+(sv==='UNKNOWN'?' selected':'')+'>UNKNOWN</option></select></td>'};
+  var ec2=function(v,m){return '<td contenteditable="true" spellcheck="false" class="edit-cell'+(m?' mono':'')+'" oninput="onCellEdit(this)">'+e2(v)+'</td>'};
+  var html=DATA.rows.filter(function(r){return r.Status==='FAILED'||r.Status==='WARNING';})
+    .map(function(r){
+      var realIdx=DATA.rows.indexOf(r);
+      return '<tr data-idx="'+realIdx+'"><td>'+r.Index+'</td>'+ec2(r.Category)+ec2(r.Description)+ec2(r.Expected,true)+ec2(r.Response,true)+sc2(r.Status)+'</tr>';
+    }).join('');
+  /* Destroy and reinit DataTable for fail tab */
+  if(dtF){dtF.destroy();dtF=null;}
+  var tbody=document.querySelector('#tFail tbody');
+  if(tbody)tbody.innerHTML=html;
+  dtF=$('#tFail').DataTable({pageLength:25,order:[[0,'asc']],columnDefs:[{orderable:false,targets:[1,2,3,4,5]}]});
+  document.querySelectorAll('#tFail .status-sel').forEach(colourSel);
+}
+
+function updateKPIs(){
+  var s=DATA.summary;
+  document.getElementById('kTotal').textContent=s.total;
+  document.getElementById('kPassed').textContent=s.passed;
+  document.getElementById('kWarning').textContent=s.warning;
+  document.getElementById('kFailed').textContent=s.failed;
+  document.getElementById('kRate').textContent=s.pass_rate+'%';
 }
 
 function updateCharts(){
@@ -679,42 +688,71 @@ function updateSidebar(){
   });
 }
 
+function showTab(t,btn){
+  document.getElementById('tabAll').style.display=t==='all'?'':'none';
+  document.getElementById('tabFail').style.display=t==='fail'?'':'none';
+  document.querySelectorAll('#tabNav .nav-link').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  if(t==='all'&&dtA)dtA.columns.adjust().draw();
+  if(t==='fail'&&dtF)dtF.columns.adjust().draw();
+}
+
+/* ── FIX 2: reExport just reads DATA.rows — no DOM scrape ── */
 function reExport(){
-  syncAll();
-  var newData=JSON.parse(JSON.stringify(DATA));
+  /* Recompute categories from current DATA.rows */
   var cm=getCatMap();
-  newData.catRows=Object.keys(cm).map(function(c){
+  var newCatRows=Object.keys(cm).map(function(c){
     var d=cm[c],t=(d.PASSED||0)+(d.WARNING||0)+(d.FAILED||0);
     return{Category:c,PASSED:d.PASSED||0,WARNING:d.WARNING||0,FAILED:d.FAILED||0,TOTAL:t};
   }).sort(function(a,b){return b.TOTAL-a.TOTAL});
+  DATA.catRows=newCatRows;
+  recomp();
 
-  /* Rebuild the entire HTML from scratch using current DATA */
   var e2=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
   var sc2=function(sv){return '<td class="status-cell"><select class="status-sel" data-v="'+sv+'" onchange="onStatusChange(this)"><option value="PASSED"'+(sv==='PASSED'?' selected':'')+'>PASSED<\\/option><option value="WARNING"'+(sv==='WARNING'?' selected':'')+'>WARNING<\\/option><option value="FAILED"'+(sv==='FAILED'?' selected':'')+'>FAILED<\\/option><option value="UNKNOWN"'+(sv==='UNKNOWN'?' selected':'')+'>UNKNOWN<\\/option><\\/select><\\/td>'};
-  var ec2=function(v,m){return '<td contenteditable="true" spellcheck="false" class="edit-cell'+(m?' mono':'')+'" oninput="markDirty(this)">'+e2(v)+'<\\/td>'};
+  var ec2=function(v,m){return '<td contenteditable="true" spellcheck="false" class="edit-cell'+(m?' mono':'')+'" oninput="onCellEdit(this)">'+e2(v)+'<\\/td>'};
 
-  var tB=newData.rows.map(function(r,i){return '<tr data-idx="'+i+'"><td>'+r.Index+'<\\/td>'+ec2(r.Category)+ec2(r.Description)+sc2(r.Status)+ec2(r.Request,true)+ec2(r.Expected,true)+ec2(r.Response,true)+'<\\/tr>'}).join('');
-  var fB=newData.rows.filter(function(r){return r.Status==='FAILED'||r.Status==='WARNING'}).map(function(r,i){return '<tr data-fidx="'+i+'"><td>'+r.Index+'<\\/td>'+ec2(r.Category)+ec2(r.Description)+ec2(r.Expected,true)+ec2(r.Response,true)+sc2(r.Status)+'<\\/tr>'}).join('');
-  var cSB=newData.catRows.slice(0,22).map(function(r){var t=r.TOTAL||1;return '<div class="catbar" data-cat="'+e2(r.Category)+'"><div style="font-weight:600;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e2(r.Category)+'<\\/div><div class="catnums" style="font-family:monospace;font-size:8px;color:#364d6e;margin-top:1px">'+r.PASSED+'P &nbsp;'+r.WARNING+'W &nbsp;'+r.FAILED+'F<\\/div><div style="height:4px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid #14192a;overflow:hidden;display:flex;margin-top:3px"><div class="bar-p" style="background:#00e676;width:'+Math.round(r.PASSED/t*100)+'%"><\\/div><div class="bar-w" style="background:#ff9100;width:'+Math.round(r.WARNING/t*100)+'%"><\\/div><div class="bar-f" style="background:#ff1744;width:'+Math.round(r.FAILED/t*100)+'%"><\\/div><\\/div><\\/div>'}).join('');
+  /* Build tables from DATA.rows (already up-to-date via onCellEdit/onStatusChange) */
+  var tB=DATA.rows.map(function(r,i){
+    return '<tr data-idx="'+i+'"><td>'+r.Index+'<\\/td>'+ec2(r.Category)+ec2(r.Description)+sc2(r.Status)+ec2(r.Request,true)+ec2(r.Expected,true)+ec2(r.Response,true)+'<\\/tr>';
+  }).join('');
 
-  var s=newData.summary;
+  var fB=DATA.rows.filter(function(r){return r.Status==='FAILED'||r.Status==='WARNING'}).map(function(r){
+    var realIdx=DATA.rows.indexOf(r);
+    return '<tr data-idx="'+realIdx+'"><td>'+r.Index+'<\\/td>'+ec2(r.Category)+ec2(r.Description)+ec2(r.Expected,true)+ec2(r.Response,true)+sc2(r.Status)+'<\\/tr>';
+  }).join('');
+
+  var cSB=DATA.catRows.slice(0,22).map(function(r){
+    var t=r.TOTAL||1;
+    return '<div class="catbar" data-cat="'+e2(r.Category)+'">'
+      +'<div style="font-weight:600;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e2(r.Category)+'<\\/div>'
+      +'<div class="catnums" style="font-family:monospace;font-size:8px;color:#364d6e;margin-top:1px">'+r.PASSED+'P &nbsp;'+r.WARNING+'W &nbsp;'+r.FAILED+'F<\\/div>'
+      +'<div style="height:4px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid #14192a;overflow:hidden;display:flex;margin-top:3px">'
+      +'<div class="bar-p" style="background:#00e676;width:'+Math.round(r.PASSED/t*100)+'%"><\\/div>'
+      +'<div class="bar-w" style="background:#ff9100;width:'+Math.round(r.WARNING/t*100)+'%"><\\/div>'
+      +'<div class="bar-f" style="background:#ff1744;width:'+Math.round(r.FAILED/t*100)+'%"><\\/div>'
+      +'<\\/div><\\/div>';
+  }).join('');
+
+  var s=DATA.summary;
   var css=document.querySelector('style').textContent;
   var js=document.getElementById('app-logic').textContent;
-  var bakedJson=JSON.stringify(newData);
+  var bakedJson=JSON.stringify(DATA);
 
-  var html='<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>CANoe.DiVa \\u2014 '+e2(newData.fileName)+'<\\/title>'
+  var html='<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+    +'<title>CANoe.DiVa \\u2014 '+e2(DATA.fileName)+'<\\/title>'
     +'<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet">'
     +'<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">'
     +'<link href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">'
     +'<style>'+css+'<\\/style><\\/head><body>'
     +'<script type="application/json" id="baked-data">'+bakedJson+'<\\/script>'
-    +'<div class="topbar"><div><div class="logo">CANoe \\u00b7 DiVa \\u2014 Test Report<\\/div><div class="fn">'+e2(newData.fileName)+'<\\/div><\\/div>'
+    +'<div class="topbar"><div><div class="logo">CANoe \\u00b7 DiVa \\u2014 Test Report<\\/div><div class="fn">'+e2(DATA.fileName)+'<\\/div><\\/div>'
     +'<div class="tbr"><div class="dirty-badge" id="dirtyBadge">\\u26a0 UNSAVED EDITS<\\/div>'
     +'<button class="expbtn hi" onclick="reExport()">\\u21e9 Save HTML<\\/button>'
     +'<button class="expbtn" onclick="exportXlsx()">\\u21e9 Excel<\\/button><\\/div><\\/div>'
     +'<div class="mstrip">'
-    +(newData.metaHdr?'<div class="mchip"><span class="mlbl">Session<\\/span><span class="mval">'+e2(newData.metaHdr)+'<\\/span><\\/div>':'')
-    +'<div class="mchip"><span class="mlbl">Generated<\\/span><span class="mval">'+new Date().toLocaleString()+'<\\/span><\\/div>'
+    +(DATA.metaHdr?'<div class="mchip"><span class="mlbl">Session<\\/span><span class="mval">'+e2(DATA.metaHdr)+'<\\/span><\\/div>':'')
+    +'<div class="mchip"><span class="mlbl">Saved<\\/span><span class="mval">'+new Date().toLocaleString()+'<\\/span><\\/div>'
     +'<div class="mchip"><span class="mlbl">Edit Mode<\\/span><span class="mval" style="color:var(--cyan)">Click any cell to edit<\\/span><\\/div><\\/div>'
     +'<div class="shell"><div class="panel"><div class="sblbl">Categories<\\/div><div id="catSidebar">'+cSB+'<\\/div><\\/div>'
     +'<div class="panel"><div class="krow">'
@@ -723,12 +761,18 @@ function reExport(){
     +'<div class="kc kw"><div class="kn" id="kWarning">'+s.warning+'<\\/div><div class="kl">Warning<\\/div><\\/div>'
     +'<div class="kc kf"><div class="kn" id="kFailed">'+s.failed+'<\\/div><div class="kl">Failed<\\/div><\\/div>'
     +'<div class="kc kr"><div class="kn" id="kRate">'+s.pass_rate+'%<\\/div><div class="kl">Pass Rate<\\/div><\\/div><\\/div>'
-    +'<div class="row g-2 mb-2"><div class="col-lg-5"><div class="panel chartbox"><canvas id="dc"><\\/canvas><\\/div><\\/div><div class="col-lg-7"><div class="panel chartbox"><canvas id="bc"><\\/canvas><\\/div><\\/div><\\/div>'
-    +'<div style="font-size:7px;color:var(--muted);font-family:Share Tech Mono,monospace;letter-spacing:1px;margin-top:3px;margin-bottom:6px">\\u270e CLICK ANY CELL TO EDIT | STATUS = DROPDOWN | CHARTS UPDATE LIVE<\\/div><hr class="hd">'
-    +'<ul class="nav nav-pills mb-2" id="tabNav"><li class="nav-item"><button class="nav-link active" onclick="showTab(\\\'all\\\',this)">All Tests<\\/button><\\/li>'
+    +'<div class="row g-2 mb-2"><div class="col-lg-5"><div class="panel chartbox"><canvas id="dc"><\\/canvas><\\/div><\\/div>'
+    +'<div class="col-lg-7"><div class="panel chartbox"><canvas id="bc"><\\/canvas><\\/div><\\/div><\\/div>'
+    +'<div style="font-size:7px;color:var(--muted);font-family:Share Tech Mono,monospace;letter-spacing:1px;margin-top:3px;margin-bottom:6px">\\u270e CLICK ANY CELL TO EDIT | STATUS = DROPDOWN | CLICK PIE/BAR TO FILTER | DBL-CLICK TO RESET<\\/div><hr class="hd">'
+    +'<ul class="nav nav-pills mb-2" id="tabNav">'
+    +'<li class="nav-item"><button class="nav-link active" onclick="showTab(\\\'all\\\',this)">All Tests<\\/button><\\/li>'
     +'<li class="nav-item"><button class="nav-link" onclick="showTab(\\\'fail\\\',this)">Failures<\\/button><\\/li><\\/ul>'
-    +'<div id="tabAll"><table id="tAll" class="table table-dark table-hover table-sm w-100"><thead><tr><th>#<\\/th><th>Category<\\/th><th>Description<\\/th><th>Status<\\/th><th>Request<\\/th><th>Expected<\\/th><th>Response<\\/th><\\/tr><\\/thead><tbody>'+tB+'<\\/tbody><\\/table><\\/div>'
-    +'<div id="tabFail" style="display:none"><table id="tFail" class="table table-dark table-hover table-sm w-100"><thead><tr><th>#<\\/th><th>Category<\\/th><th>Description<\\/th><th>Expected<\\/th><th>Response<\\/th><th>Status<\\/th><\\/tr><\\/thead><tbody>'+fB+'<\\/tbody><\\/table><\\/div>'
+    +'<div id="tabAll"><table id="tAll" class="table table-dark table-hover table-sm w-100">'
+    +'<thead><tr><th>#<\\/th><th>Category<\\/th><th>Description<\\/th><th>Status<\\/th><th>Request<\\/th><th>Expected<\\/th><th>Response<\\/th><\\/tr><\\/thead>'
+    +'<tbody>'+tB+'<\\/tbody><\\/table><\\/div>'
+    +'<div id="tabFail" style="display:none"><table id="tFail" class="table table-dark table-hover table-sm w-100">'
+    +'<thead><tr><th>#<\\/th><th>Category<\\/th><th>Description<\\/th><th>Expected<\\/th><th>Response<\\/th><th>Status<\\/th><\\/tr><\\/thead>'
+    +'<tbody>'+fB+'<\\/tbody><\\/table><\\/div>'
     +'<\\/div><\\/div>'
     +'<script src="https://code.jquery.com/jquery-3.7.1.min.js"><\\/script>'
     +'<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"><\\/script>'
@@ -742,12 +786,10 @@ function reExport(){
   a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
   a.download='CAPL_report_edited.html';
   a.click();
-  dirty=false;
   document.getElementById('dirtyBadge').classList.remove('show');
 }
 
 function exportXlsx(){
-  syncAll();
   var data=DATA.rows.map(function(r,i){
     return{'S.No':i+1,'Test #':r.Index,'Category':r.Category||'','Description':r.Description||'','Status':r.Status,'Request':r.Request||'','Expected':r.Expected||'','Response':r.Response||'','Jira ID':''};
   });
@@ -759,17 +801,103 @@ function exportXlsx(){
 
 $(function(){
   document.querySelectorAll('.status-sel').forEach(colourSel);
-  dtA=$('#tAll').DataTable({pageLength:25,order:[[0,'asc']],columnDefs:[{orderable:false,targets:[1,2,3,4,5,6]}]});
-  dtF=$('#tFail').DataTable({pageLength:25,order:[[0,'asc']],columnDefs:[{orderable:false,targets:[1,2,3,4,5]}]});
+
+  dtA=$('#tAll').DataTable({
+    pageLength:25,
+    order:[[0,'asc']],
+    columnDefs:[{orderable:false,targets:[1,2,3,4,5,6]}]
+  });
+  dtF=$('#tFail').DataTable({
+    pageLength:25,
+    order:[[0,'asc']],
+    columnDefs:[{orderable:false,targets:[1,2,3,4,5]}]
+  });
+
   var TXT='#e4efff',M='#364d6e',s=DATA.summary;
   var cm=getCatMap();window._catMap=cm;
   var cats=Object.keys(cm).sort(function(a,b){
     return((cm[b].PASSED||0)+(cm[b].WARNING||0)+(cm[b].FAILED||0))-((cm[a].PASSED||0)+(cm[a].WARNING||0)+(cm[a].FAILED||0));
   }).slice(0,12);
 
-  dcChart=new Chart(document.getElementById('dc'),{type:'doughnut',data:{labels:['PASSED','WARNING','FAILED'],datasets:[{data:[s.passed,s.warning,s.failed],backgroundColor:['rgba(0,230,118,.82)','rgba(255,145,0,.82)','rgba(255,23,68,.82)'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',animation:false,plugins:{legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:11,weight:'700'},padding:11}},title:{display:true,text:'PASS / WARN / FAIL',color:M,font:{family:'Share Tech Mono',size:8}},tooltip:{backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,callbacks:{label:function(c){var t=(DATA.summary.passed+DATA.summary.warning+DATA.summary.failed)||1;return' '+c.label+': '+c.raw+' ('+(c.raw/t*100).toFixed(2)+'%)'}}}}}});
+  /* ── FIX 1: pie chart onClick properly wired ── */
+  var dcEl=document.getElementById('dc');
+  dcChart=new Chart(dcEl,{
+    type:'doughnut',
+    data:{
+      labels:['PASSED','WARNING','FAILED'],
+      datasets:[{
+        data:[s.passed,s.warning,s.failed],
+        backgroundColor:['rgba(0,230,118,.82)','rgba(255,145,0,.82)','rgba(255,23,68,.82)'],
+        borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      cutout:'68%',
+      animation:false,
+      plugins:{
+        legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:11,weight:'700'},padding:11}},
+        title:{display:true,text:'CLICK SLICE TO FILTER — DBL-CLICK TO RESET',color:M,font:{family:'Share Tech Mono',size:8}},
+        tooltip:{
+          backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,
+          callbacks:{label:function(c){var t=(DATA.summary.passed+DATA.summary.warning+DATA.summary.failed)||1;return' '+c.label+': '+c.raw+' ('+(c.raw/t*100).toFixed(2)+'%)'}}
+        }
+      },
+      onClick:function(e,els){
+        if(els&&els.length){
+          var label=dcChart.data.labels[els[0].index];
+          /* show All tab then filter status column */
+          showTab('all',document.querySelector('#tabNav .nav-link'));
+          dtA.column(3).search('^'+label+'$',true,false).draw();
+        }
+      }
+    }
+  });
+  dcEl.addEventListener('dblclick',function(){
+    dtA.column(1).search('').column(3).search('').draw();
+  });
 
-  bcChart=new Chart(document.getElementById('bc'),{type:'bar',data:{labels:cats,datasets:[{label:'PASSED',data:cats.map(function(c){return cm[c].PASSED||0}),backgroundColor:'rgba(0,230,118,.72)',stack:'s'},{label:'WARNING',data:cats.map(function(c){return cm[c].WARNING||0}),backgroundColor:'rgba(255,145,0,.72)',stack:'s'},{label:'FAILED',data:cats.map(function(c){return cm[c].FAILED||0}),backgroundColor:'rgba(255,23,68,.82)',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,animation:false,scales:{x:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}},y:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}}},plugins:{legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:10,weight:'700'},padding:9}},title:{display:true,text:'CATEGORY OVERVIEW (TOP 12)',color:M,font:{family:'Share Tech Mono',size:8}},tooltip:{backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,callbacks:{label:function(c){var d=cm[bcChart.data.labels[c.dataIndex]]||{};var t=(d.PASSED||0)+(d.WARNING||0)+(d.FAILED||0)||1;return' '+c.dataset.label+': '+c.raw+' ('+(c.raw/t*100).toFixed(1)+'%)'}}}}}});
+  bcChart=new Chart(document.getElementById('bc'),{
+    type:'bar',
+    data:{
+      labels:cats,
+      datasets:[
+        {label:'PASSED',data:cats.map(function(c){return cm[c].PASSED||0}),backgroundColor:'rgba(0,230,118,.72)',stack:'s'},
+        {label:'WARNING',data:cats.map(function(c){return cm[c].WARNING||0}),backgroundColor:'rgba(255,145,0,.72)',stack:'s'},
+        {label:'FAILED',data:cats.map(function(c){return cm[c].FAILED||0}),backgroundColor:'rgba(255,23,68,.82)',stack:'s'}
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:false,
+      scales:{
+        x:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}},
+        y:{stacked:true,ticks:{color:M,font:{family:'Share Tech Mono',size:7}},grid:{color:'rgba(20,25,42,.8)'}}
+      },
+      plugins:{
+        legend:{display:true,labels:{color:TXT,font:{family:'Orbitron',size:10,weight:'700'},padding:9}},
+        title:{display:true,text:'CATEGORY OVERVIEW (TOP 12)',color:M,font:{family:'Share Tech Mono',size:8}},
+        tooltip:{
+          backgroundColor:'rgba(12,14,20,.96)',borderColor:'#1c2640',borderWidth:1,
+          callbacks:{label:function(c){var d=cm[bcChart.data.labels[c.dataIndex]]||{};var t=(d.PASSED||0)+(d.WARNING||0)+(d.FAILED||0)||1;return' '+c.dataset.label+': '+c.raw+' ('+(c.raw/t*100).toFixed(1)+'%)'}}
+        }
+      },
+      onClick:function(e,els){
+        if(els&&els.length){
+          var cat=bcChart.data.labels[els[0].index];
+          var statusLabel=['PASSED','WARNING','FAILED'][els[0].datasetIndex];
+          showTab('all',document.querySelector('#tabNav .nav-link'));
+          dtA.column(1).search('^'+cat.replace(/[.*+?^${}()|[\\\]\\\\]/g,'\\\\$&')+'$',true,false);
+          dtA.column(3).search('^'+statusLabel+'$',true,false).draw();
+        }
+      }
+    }
+  });
+  document.getElementById('bc').addEventListener('dblclick',function(){
+    dtA.column(1).search('').column(3).search('').draw();
+  });
 });
 `;
 
@@ -806,7 +934,7 @@ $(function(){
     +'      <div class="col-lg-5"><div class="panel chartbox"><canvas id="dc"></canvas></div></div>\n'
     +'      <div class="col-lg-7"><div class="panel chartbox"><canvas id="bc"></canvas></div></div>\n'
     +'    </div>\n'
-    +'    <div style="font-size:7px;color:var(--muted);font-family:\'Share Tech Mono\',monospace;letter-spacing:1px;margin-top:3px;margin-bottom:6px">\u270e CLICK ANY CELL TO EDIT &nbsp;|&nbsp; STATUS = DROPDOWN &nbsp;|&nbsp; CHARTS UPDATE LIVE</div>\n'
+    +'    <div style="font-size:7px;color:var(--muted);font-family:\'Share Tech Mono\',monospace;letter-spacing:1px;margin-top:3px;margin-bottom:6px">\u270e CLICK ANY CELL TO EDIT &nbsp;|&nbsp; STATUS = DROPDOWN &nbsp;|&nbsp; CLICK PIE/BAR TO FILTER &nbsp;|&nbsp; DBL-CLICK TO RESET</div>\n'
     +'    <hr class="hd">\n'
     +'    <ul class="nav nav-pills mb-2" id="tabNav">\n'
     +'      <li class="nav-item"><button class="nav-link active" onclick="showTab(\'all\',this)">All Tests</button></li>\n'
